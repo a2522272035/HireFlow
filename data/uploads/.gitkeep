@@ -1,0 +1,3 @@
+# Upload directory for temporary files
+# This directory stores uploaded files temporarily
+# Contents are not committed to Git

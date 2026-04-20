@@ -1,0 +1,7 @@
+# Production Docker Compose Configuration
+# TODO: Configure for production deployment
+# - Use environment variables for secrets
+# - Add reverse proxy (nginx/traefik)
+# - Configure SSL/TLS
+# - Add monitoring (prometheus/grafana)
+# - Configure backup volumes

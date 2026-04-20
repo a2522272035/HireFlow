@@ -1,0 +1,6 @@
+# CI/CD Pipeline for HireFlow
+# TODO: Configure deployment workflow
+# - Build and test backend
+# - Build and test frontend
+# - Deploy to production server
+# - Run database migrations

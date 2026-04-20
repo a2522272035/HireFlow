@@ -1,0 +1,42 @@
+# HireFlow AI Assistant Rules
+
+## 技术栈
+- **Backend**: FastAPI + SQLAlchemy (async) + PostgreSQL (pgvector) + LangGraph
+- **Frontend**: Vue 3 + Vite + Element Plus + Pinia
+- **Deployment**: Docker Compose
+- **AI/ML**: LangGraph for agent workflow, pgvector for RAG
+
+## 代码规范
+
+### Python
+1. **类型提示**: 所有函数必须添加类型提示，使用 `from __future__ import annotations`
+2. **异步优先**: 数据库操作使用 async/await，SQLAlchemy 使用 async session
+3. **单一职责**: 每个函数/类只做一件事，Agent 模块按功能拆分
+4. **错误处理**: 使用自定义异常类，统一在 middleware 处理
+5. **导入排序**: stdlib → third-party → local，使用绝对导入
+
+### Vue/JavaScript
+1. **Composition API**: 优先使用 `<script setup>` 语法
+2. **TypeScript**: 关键组件使用 TypeScript
+3. **组件命名**: PascalCase，文件与组件名一致
+4. **状态管理**: 使用 Pinia，按功能模块拆分 store
+
+## 项目结构约定
+- `backend/app/agents/`: LangGraph Agent 相关，每个 Agent 独立子目录
+- `backend/app/api/v1/`: API 路由，按功能模块拆分
+- `backend/app/models/`: SQLAlchemy ORM 模型
+- `backend/app/schemas/`: Pydantic 请求/响应模型
+- `backend/app/services/`: 业务逻辑层，被 API 层调用
+- `frontend/src/composables/`: 可复用组合式函数
+- `frontend/src/views/`: 页面级组件
+
+## 数据库约定
+- 使用 PostgreSQL + pgvector 扩展
+- 表名使用小写下划线命名
+- 所有表必须包含 id (UUID)、created_at、updated_at 字段
+- 向量字段使用 pgvector 的 vector 类型
+
+## 注释规范
+- 复杂业务逻辑添加中文注释
+- Agent Prompt 模板单独放在 prompts.py 中
+- API 端点使用 FastAPI 的 docstring 描述

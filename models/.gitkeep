@@ -1,0 +1,8 @@
+# Local model files directory
+# This directory is used for storing local AI models
+# Contents are not committed to Git
+#
+# Expected subdirectories:
+# - smart-resume/Qwen3-0.6B/
+# - smart-resume/YOLOv10/
+# - whisper/
