@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     DEEPSEEK_API_KEY: str | None = None
     OPENAI_API_KEY: str | None = None
 
+    # ResumeSDK API
+    RESUMESDK_API_URL: str = "http://www.resumesdk.com/api/parse"
+    RESUMESDK_UID: str | None = None
+    RESUMESDK_PWD: str | None = None
+
     # WeCom
     WECOM_CORP_ID: str | None = None
     WECOM_AGENT_ID: str | None = None
@@ -47,13 +52,14 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./data/uploads"
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB
 
-    # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    # CORS - 使用字符串形式，在代码中解析
+    CORS_ORIGINS: str = "*"
 
-    def model_post_init(self, __context):
-        """Post initialization to parse CORS_ORIGINS if it's a string."""
-        if isinstance(self.CORS_ORIGINS, str):
-            self.CORS_ORIGINS = [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+    def get_cors_origins(self) -> list[str]:
+        """获取 CORS 来源列表"""
+        if self.CORS_ORIGINS == "*":
+            return ["*"]
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
 
 @lru_cache()

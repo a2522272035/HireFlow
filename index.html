@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简历画像 · 模仿 ResumeSDK 样式</title>
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Bootstrap 4 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+    <!-- ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        /* ===== 自定义样式 (与原文件完全一致) ===== */
+        body {
+            background-color: #f9fbfd;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        :root {
+            --primary: #335EEA;
+            --info: #7C69EF;
+            --warning: #FAD776;
+            --danger: #DF4759;
+            --success: #42BA96;
+            --gray: #869AB8;
+            --dark: #1B2A4E;
+        }
+        .mycard {
+            background: #fff;
+            border-radius: 1rem;
+            box-shadow: 0 0.75rem 1.5rem rgba(22, 28, 45, 0.05);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .mycard-header {
+            padding: 1.5rem 1.5rem 0.5rem 1.5rem;
+            border-bottom: 1px solid #edf2f9;
+        }
+        .mybg-white { background-color: #fff; }
+        .mycard-body { padding: 1.5rem; }
+
+        .mybadge {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            line-height: 1.2;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: baseline;
+            border-radius: 0.25rem;
+            margin-right: 0.25rem;
+            margin-bottom: 0.25rem;
+        }
+        .mybadge-primary { background-color: var(--primary); color: #fff; }
+        .mybadge-info { background-color: var(--info); color: #fff; }
+        .mybadge-warning { background-color: var(--warning); color: var(--dark); }
+        .mybadge-success { background-color: var(--success); color: #fff; }
+        .mybadge-danger { background-color: var(--danger); color: #fff; }
+        .mybadge-pill { border-radius: 10rem; padding-left: 0.8rem; padding-right: 0.8rem; }
+
+        .mytext-primary { color: var(--primary) !important; }
+        .mytext-warning { color: var(--warning) !important; }
+        .mytext-info { color: var(--info) !important; }
+        .mytext-muted { color: var(--gray) !important; }
+        .mybg-primary { background-color: var(--primary); }
+        .mybg-warning { background-color: var(--warning); }
+        .mybg-info { background-color: var(--info); }
+        .mybg-success { background-color: var(--success); }
+        .mybg-danger { background-color: var(--danger); }
+
+        .r_small { font-size: 0.85rem; }
+        .r_small_70 { font-size: 0.7rem; font-weight: 500; text-transform: uppercase; }
+        .r_indent2 { margin-left: 0.5rem; margin-right: 0.25rem; }
+        .r_circle {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .row-bordered {
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #edf2f9;
+        }
+        .header_img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 2px rgba(51,94,234,0.1);
+        }
+
+        /* Vue 自定义标签页样式 */
+        .vue-nav-pills {
+            display: flex;
+            padding-left: 0;
+            margin-bottom: 1.5rem;
+            list-style: none;
+        }
+        .vue-nav-pills .nav-item {
+            margin-right: 0.5rem;
+        }
+        .vue-nav-pills .nav-link {
+            color: var(--gray);
+            border-radius: 0.5rem;
+            padding: 0.5rem 1.25rem;
+            cursor: pointer;
+            display: block;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .vue-nav-pills .nav-link:hover {
+            color: var(--primary);
+            background-color: rgba(51, 94, 234, 0.05);
+        }
+        .vue-nav-pills .nav-link.active {
+            background-color: var(--primary);
+            color: #fff;
+        }
+
+        /* Tab 内容过渡动画 */
+        .tab-pane {
+            display: none;
+        }
+        .tab-pane.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        table { color: #1b2a4e; }
+        .underline { text-decoration: underline; text-underline-offset: 2px; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <img src="https://www.resumesdk.com/assets/img/resumesdk-logo.png" height="30" alt="ResumeSDK">
+            </a>
+            <div class="ml-auto">
+                <span class="badge badge-primary px-3 py-2">DEMO 预览</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <section class="py-4 py-md-5">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-12 col-xl-11">
+
+                    <!-- 卡片容器 -->
+                    <div class="mycard mb-5">
+                        <!-- 头部信息 -->
+                        <div class="mycard-header mybg-white">
+                            <div class="row align-items-center">
+                                <div class="col-md-10 text-center text-md-left">
+                                    <h3 class="mb-2">
+                                        <strong>{{ resumeData.name }}</strong>
+                                        <span class="font-weight-light ml-2"><small>{{ resumeData.position }}</small></span>
+                                    </h3>
+                                    <div class="mb-2">
+                                        <span v-for="(tag, index) in resumeData.tags" :key="index"
+                                              :class="['mybadge', tag.class]"
+                                              :title="tag.title">{{ tag.text }}</span>
+                                    </div>
+                                    <div class="r_small text-muted">
+                                        <span><i class="bi-gender-neuter mr-1"></i>{{ resumeData.gender }}</span>
+                                        <span class="ml-3"><i class="bi-file-person mr-1"></i>{{ resumeData.age }}岁</span>
+                                        <span class="ml-3"><i class="bi-geo-alt-fill mr-1"></i>{{ resumeData.location }}</span>
+                                        <span class="ml-3"><i class="bi-calendar3 mr-1"></i>{{ resumeData.experience }}年工作经验</span>
+                                    </div>
+                                    <div class="r_small text-muted">
+                                        <span><i class="bi-buildings mr-1"></i>{{ resumeData.school }}</span>
+                                        <span class="ml-3"><i class="bi-mortarboard-fill mr-1"></i>{{ resumeData.degree }}</span>
+                                        <span class="ml-3"><i class="bi-telephone mr-1"></i>{{ resumeData.phone }}</span>
+                                        <span class="ml-3"><i class="bi-envelope-fill mr-1"></i>{{ resumeData.email }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 text-center mt-3 mt-md-0">
+                                    <img :src="resumeData.avatar" alt="头像" class="header_img">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 主体：标签页 -->
+                        <div class="mycard-body">
+                            <!-- Vue 自定义标签导航 -->
+                            <ul class="vue-nav-pills">
+                                <li class="nav-item" v-for="tab in tabs" :key="tab.id">
+                                    <a :class="['nav-link', { active: activeTab === tab.id }]"
+                                       @click="switchTab(tab.id)">{{ tab.icon }} {{ tab.label }}</a>
+                                </li>
+                            </ul>
+
+                            <!-- 标签内容 -->
+                            <div class="tab-content">
+                                <!-- 简历解析面板 -->
+                                <div :class="['tab-pane', { active: activeTab === 'parser' }]">
+                                    <table class="w-100" style="font-size:90%;">
+                                        <tr><td colspan="4"><h5 class="row-bordered font-weight-bold"><i class="bi-play-fill mytext-primary r_indent2"></i>简历信息</h5></td></tr>
+                                        <tr><td colspan="4"><div class="r_content"><span class="mytext-muted">简历类型:</span> {{ parserData.resumeType }}</div></td></tr>
+                                        <tr><td colspan="4"><div class="r_content"><span class="mytext-muted">简历完整度:</span> {{ parserData.completeness }}</div></td></tr>
+                                        <tr><td colspan="4"><div class="r_content"><span class="mytext-muted">解析时间:</span> {{ parserData.parseTime }}</div></td></tr>
+
+                                        <tr><td colspan="4"><h5 class="row-bordered font-weight-bold mt-3"><i class="bi-play-fill mytext-primary r_indent2"></i>基本信息</h5></td></tr>
+                                        <tr><td colspan="2"><span class="mytext-muted">姓名:</span> {{ parserData.basicInfo.name }}</td><td colspan="2"><span class="mytext-muted">性别:</span> {{ parserData.basicInfo.gender }}</td></tr>
+                                        <tr><td colspan="2"><span class="mytext-muted">年龄:</span> {{ parserData.basicInfo.age }}</td><td colspan="2"><span class="mytext-muted">工作年限:</span> {{ parserData.basicInfo.workYears }}</td></tr>
+                                        <tr><td colspan="2"><span class="mytext-muted">毕业学校:</span> {{ parserData.basicInfo.school }}</td><td colspan="2"><span class="mytext-muted">学历:</span> {{ parserData.basicInfo.degree }}</td></tr>
+                                        <tr><td colspan="2"><span class="mytext-muted">当前职位:</span> {{ parserData.basicInfo.currentPosition }}</td><td colspan="2"><span class="mytext-muted">当前单位:</span> {{ parserData.basicInfo.currentCompany }}</td></tr>
+
+                                        <tr><td colspan="4"><h5 class="row-bordered font-weight-bold mt-3"><i class="bi-play-fill mytext-primary r_indent2"></i>联系方式</h5></td></tr>
+                                        <tr><td colspan="4"><span class="mytext-muted">联系电话:</span> {{ parserData.contact.phone }}</td></tr>
+
+                                        <tr><td colspan="4"><h5 class="row-bordered font-weight-bold mt-3"><i class="bi-play-fill mytext-primary r_indent2"></i>期望工作</h5></td></tr>
+                                        <tr><td colspan="4"><span class="mytext-muted">期望职位:</span> {{ parserData.expectation.position }}</td></tr>
+                                        <tr><td colspan="4"><span class="mytext-muted">期望薪资:</span> {{ parserData.expectation.salary }}</td></tr>
+                                        <tr><td colspan="4"><span class="mytext-muted">期望地点:</span> {{ parserData.expectation.location }}</td></tr>
+
+                                        <tr><td colspan="4"><h5 class="row-bordered font-weight-bold mt-3"><i class="bi-play-fill mytext-primary r_indent2"></i>教育经历</h5></td></tr>
+                                        <tr><td colspan="4">{{ parserData.education.period }} {{ parserData.education.school }} · {{ parserData.education.major }} · {{ parserData.education.degree }}</td></tr>
+
+                                        <tr><td colspan="4"><h5 class="row-bordered font-weight-bold mt-3"><i class="bi-play-fill mytext-primary r_indent2"></i>工作经历</h5></td></tr>
+                                        <tr v-for="(work, index) in parserData.workExperience" :key="index">
+                                            <td colspan="4" :class="index < parserData.workExperience.length - 1 ? 'pb-2' : ''">
+                                                <strong>{{ work.period }} · {{ work.position }}</strong> @ {{ work.company }}
+                                                <div v-if="work.description" class="mt-1">{{ work.description }}</div>
+                                            </td>
+                                        </tr>
+
+                                        <tr><td colspan="4"><h5 class="row-bordered font-weight-bold mt-3"><i class="bi-play-fill mytext-primary r_indent2"></i>技能列表</h5></td></tr>
+                                        <tr><td colspan="4">
+                                            <span v-for="(skill, index) in parserData.skills" :key="index" class="mybadge mybadge-primary">{{ skill }}</span>
+                                        </td></tr>
+                                    </table>
+                                </div>
+
+                                <!-- 简历画像面板 -->
+                                <div :class="['tab-pane', { active: activeTab === 'profiler' }]">
+                                    <table class="w-100">
+                                        <tr><td colspan="4"><h5 class="row-bordered font-weight-bold"><i class="bi-play-fill mytext-primary r_indent2"></i>简历亮点</h5></td></tr>
+                                        <tr><td colspan="4">
+                                            <h6><i class="bi-hand-thumbs-up mr-2 mytext-primary"></i>亮点信息 <span class="mybadge mybadge-pill mybadge-primary ml-2">{{ profilerData.highlights.count }}</span></h6>
+                                            <div v-for="(item, index) in profilerData.highlights.items" :key="index" class="ml-4 mb-2">
+                                                <i class="r_circle mybg-primary"></i>{{ item }}
+                                            </div>
+
+                                            <h6 class="mt-3"><i class="bi-info-circle mr-2 mytext-warning"></i>风险信息 <span class="mybadge mybadge-pill mybadge-warning ml-2">{{ profilerData.risks.count }}</span></h6>
+                                            <div v-for="(item, index) in profilerData.risks.items" :key="index" class="ml-4 mb-2">
+                                                <i class="r_circle mybg-warning"></i>{{ item }}
+                                            </div>
+
+                                            <h6 class="mt-3"><i class="bi-pencil mr-2 mytext-info"></i>智能评估 <span class="mybadge mybadge-pill mybadge-info ml-2">{{ profilerData.assessment.count }}</span></h6>
+                                            <div class="ml-4">
+                                                <i class="r_circle mybg-info"></i>{{ profilerData.assessment.label }} <span class="mytext-info underline font-weight-bold">{{ profilerData.assessment.value }}</span>
+                                            </div>
+                                        </td></tr>
+
+                                        <tr><td colspan="4"><h5 class="row-bordered font-weight-bold mt-4"><i class="bi-play-fill mytext-primary r_indent2"></i>简历标签</h5></td></tr>
+                                        <tr><td colspan="4">
+                                            <div v-for="(tagGroup, index) in profilerData.tags" :key="index" class="mb-3">
+                                                <span class="r_small_70">{{ tagGroup.category }}：</span>
+                                                <span v-for="(tag, tIndex) in tagGroup.items" :key="tIndex" :class="['mybadge', tag.class]">{{ tag.text }}</span>
+                                            </div>
+                                        </td></tr>
+
+                                        <tr><td colspan="4"><h5 class="row-bordered font-weight-bold mt-4"><i class="bi-play-fill mytext-primary r_indent2"></i>综合评估</h5></td></tr>
+                                        <tr><td colspan="4" class="text-center pt-2"><h6>能力指数</h6></td></tr>
+                                        <tr><td colspan="4" class="d-flex justify-content-center">
+                                            <div ref="capacityChart" style="width: 100%; max-width: 500px; height: 300px;"></div>
+                                        </td></tr>
+                                        <tr><td colspan="4" class="text-center pt-3"><h6>一级行业匹配度</h6></td></tr>
+                                        <tr><td colspan="4" class="d-flex justify-content-center">
+                                            <div ref="industryChart" style="width: 100%; max-width: 500px; height: 300px;"></div>
+                                        </td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer class="py-4 bg-white border-top text-center text-muted small">
+        <div class="container">
+            <span>模仿 ResumeSDK 简历详情页 · 仅用于学习交流</span>
+        </div>
+    </footer>
+</div>
+
+<script>
+    const { createApp, ref, onMounted, nextTick, watch } = Vue;
+
+    createApp({
+        setup() {
+            // 当前激活的标签页
+            const activeTab = ref('parser');
+
+            // 图表 DOM 引用
+            const capacityChart = ref(null);
+            const industryChart = ref(null);
+
+            // 图表实例
+            let capacityChartInstance = null;
+            let industryChartInstance = null;
+
+            // 标签页配置
+            const tabs = [
+                { id: 'parser', label: '简历解析', icon: '📄' },
+                { id: 'profiler', label: '简历画像', icon: '🏷️' }
+            ];
+
+            // 简历头部数据
+            const resumeData = {
+                name: '初婷',
+                position: '总账会计',
+                tags: [
+                    { text: '工作稳定', class: 'mybadge-primary', title: '亮点标签' },
+                    { text: '技能丰富', class: 'mybadge-primary', title: '亮点标签' },
+                    { text: '5-10K', class: 'mybadge-info', title: '预估薪资' },
+                    { text: '职业教育', class: 'mybadge-warning', title: '风险点' },
+                    { text: '空档期', class: 'mybadge-warning', title: '风险点' }
+                ],
+                gender: '女',
+                age: 36,
+                location: '长春',
+                experience: 12,
+                school: '吉林交通职业技术学院',
+                degree: '大专',
+                phone: '189****2347',
+                email: 'chuting@email.com',
+                avatar: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23335EEA'/%3E%3Ctext x='50' y='67' font-size='40' text-anchor='middle' fill='white' font-family='Arial'%3E初%3C/text%3E%3C/svg%3E"
+            };
+
+            // 简历解析数据
+            const parserData = {
+                resumeType: '中文',
+                completeness: 60,
+                parseTime: '2026-04-21 12:53:00',
+                basicInfo: {
+                    name: '初婷',
+                    gender: '女',
+                    age: 36,
+                    workYears: '12年',
+                    school: '吉林交通职业技术学院',
+                    degree: '大专',
+                    currentPosition: '总账会计',
+                    currentCompany: '吉林省凝德医药有限公司'
+                },
+                contact: {
+                    phone: '18943972347'
+                },
+                expectation: {
+                    position: '会计',
+                    salary: '6000元/月',
+                    location: '长春'
+                },
+                education: {
+                    period: '2011~2014',
+                    school: '吉林交通职业技术学院',
+                    major: '电子商务',
+                    degree: '大专'
+                },
+                workExperience: [
+                    {
+                        period: '2023.05~2026.03',
+                        position: '总账会计',
+                        company: '吉林省凝德医药有限公司',
+                        description: '负责全盘账务、税务申报、成本核算、往来款项管理等。'
+                    },
+                    {
+                        period: '2020.03~2023.04',
+                        position: '会计',
+                        company: '吉林省聚星供应链管理有限公司',
+                        description: '负责财务核算、纳税申报、费用审核、指导出纳等。'
+                    }
+                ],
+                skills: ['账务处理', '税务申报', '汇算清缴', '财务核算', '全盘账务']
+            };
+
+            // 简历画像数据
+            const profilerData = {
+                highlights: {
+                    count: 5,
+                    items: [
+                        '工作稳定：平均每段经历35个月',
+                        '会计师职能领域经验丰富',
+                        '会计/财务技能非常丰富'
+                    ]
+                },
+                risks: {
+                    count: 2,
+                    items: [
+                        '毕业于职业教育院校',
+                        '存在63个月职业空档期'
+                    ]
+                },
+                assessment: {
+                    count: 1,
+                    label: '预估市场薪资',
+                    value: '5-10K/月'
+                },
+                tags: [
+                    {
+                        category: '基本',
+                        items: [
+                            { text: '女', class: 'mybadge-primary' },
+                            { text: '35-40岁', class: 'mybadge-primary' },
+                            { text: '10年以上经验', class: 'mybadge-primary' }
+                        ]
+                    },
+                    {
+                        category: '教育',
+                        items: [
+                            { text: '大专学历', class: 'mybadge-success' },
+                            { text: '电子商务专业', class: 'mybadge-success' }
+                        ]
+                    },
+                    {
+                        category: '职能',
+                        items: [
+                            { text: '总账会计', class: 'mybadge-info' },
+                            { text: '会计师', class: 'mybadge-info' }
+                        ]
+                    },
+                    {
+                        category: '证书',
+                        items: [
+                            { text: '会计从业资格证', class: 'mybadge-warning' },
+                            { text: '会计初级职称', class: 'mybadge-warning' }
+                        ]
+                    },
+                    {
+                        category: '技能',
+                        items: [
+                            { text: '账务处理', class: 'mybadge-danger' },
+                            { text: '税务申报', class: 'mybadge-danger' },
+                            { text: '财务', class: 'mybadge-danger' },
+                            { text: '汇算清缴', class: 'mybadge-danger' }
+                        ]
+                    }
+                ]
+            };
+
+            // 切换标签页
+            const switchTab = (tabId) => {
+                activeTab.value = tabId;
+            };
+
+            // 初始化能力指数图表
+            const initCapacityChart = () => {
+                if (!capacityChart.value) return;
+
+                capacityChartInstance = echarts.init(capacityChart.value);
+                capacityChartInstance.setOption({
+                    radar: {
+                        indicator: [
+                            { name: '教育背景', max: 100 },
+                            { name: '工作能力', max: 100 },
+                            { name: '管理能力', max: 100 },
+                            { name: '社会能力', max: 100 },
+                            { name: '语言能力', max: 100 },
+                            { name: '荣誉指数', max: 100 }
+                        ],
+                        shape: 'circle',
+                        center: ['50%', '45%'],
+                        radius: '65%'
+                    },
+                    series: [{
+                        type: 'radar',
+                        data: [{ value: [50, 58, 50, 50, 50, 50], areaStyle: { color: 'rgba(51, 94, 234, 0.2)' } }],
+                        lineStyle: { color: '#335EEA', width: 2 },
+                        itemStyle: { color: '#335EEA' }
+                    }]
+                });
+            };
+
+            // 初始化行业匹配度图表
+            const initIndustryChart = () => {
+                if (!industryChart.value) return;
+
+                industryChartInstance = echarts.init(industryChart.value);
+                industryChartInstance.setOption({
+                    radar: {
+                        indicator: [
+                            { name: '物流/运输', max: 100 },
+                            { name: '专业服务', max: 100 },
+                            { name: '计算机/互联网', max: 100 },
+                            { name: '政府/非营利', max: 100 },
+                            { name: '广告/媒体', max: 100 },
+                            { name: '能源/化工', max: 100 },
+                            { name: '房地产/建筑', max: 100 }
+                        ],
+                        shape: 'circle',
+                        center: ['50%', '45%'],
+                        radius: '65%'
+                    },
+                    series: [{
+                        type: 'radar',
+                        data: [{ value: [66, 66, 66, 50, 50, 50, 50], areaStyle: { color: 'rgba(51, 94, 234, 0.15)' } }],
+                        lineStyle: { color: '#335EEA', width: 2 }
+                    }]
+                });
+            };
+
+            // 监听标签页切换，初始化图表
+            watch(activeTab, (newTab) => {
+                if (newTab === 'profiler') {
+                    nextTick(() => {
+                        initCapacityChart();
+                        initIndustryChart();
+                    });
+                }
+            });
+
+            // 窗口大小改变时自适应
+            const handleResize = () => {
+                if (capacityChartInstance) capacityChartInstance.resize();
+                if (industryChartInstance) industryChartInstance.resize();
+            };
+
+            onMounted(() => {
+                window.addEventListener('resize', handleResize);
+            });
+
+            return {
+                activeTab,
+                tabs,
+                resumeData,
+                parserData,
+                profilerData,
+                switchTab,
+                capacityChart,
+                industryChart
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>

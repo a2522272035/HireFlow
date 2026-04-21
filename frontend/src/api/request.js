@@ -5,7 +5,7 @@ import { useUserStore } from '@/stores/user'
 // Create axios instance
 const request = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
-  timeout: 30000,
+  timeout: 300000, // 5分钟默认超时，模型解析需要较长时间
   headers: {
     'Content-Type': 'application/json',
   },

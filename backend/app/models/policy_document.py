@@ -4,8 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID, VECTOR
-
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from app.core.database import Base
 
 
@@ -19,8 +18,8 @@ class PolicyDocument(Base):
     content = Column(Text, nullable=False)
     summary = Column(Text, nullable=True)
 
-    # Vector embedding for RAG (dimension 1536 for OpenAI embeddings)
-    embedding = Column(VECTOR(1536), nullable=True)
+    # Vector embedding for RAG (使用 SQLite 时暂不支持，生产环境使用 PostgreSQL + pgvector)
+    # embedding = Column(Vector(1536), nullable=True)
 
     # Document metadata
     doc_type = Column(String(100), nullable=True)  # handbook, policy, procedure, etc.

@@ -9,6 +9,7 @@ export const resumeApi = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      timeout: 300000, // 5分钟超时，模型解析需要较长时间
     })
   },
 
