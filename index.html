@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>简历画像 · 模仿 ResumeSDK 样式</title>
+    <title>简历画像 · ResumeSDK 智能解析</title>
     <!-- Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <!-- Bootstrap 4 CSS -->
@@ -13,11 +13,6 @@
     <!-- ECharts -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
     <style>
-        /* ===== 自定义样式 (与原文件完全一致) ===== */
-        body {
-            background-color: #f9fbfd;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        }
         :root {
             --primary: #335EEA;
             --info: #7C69EF;
@@ -26,6 +21,10 @@
             --success: #42BA96;
             --gray: #869AB8;
             --dark: #1B2A4E;
+        }
+        body {
+            background-color: #f9fbfd;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
         .mycard {
             background: #fff;
@@ -39,7 +38,6 @@
         }
         .mybg-white { background-color: #fff; }
         .mycard-body { padding: 1.5rem; }
-
         .mybadge {
             display: inline-block;
             padding: 0.25rem 0.6rem;
@@ -59,7 +57,6 @@
         .mybadge-success { background-color: var(--success); color: #fff; }
         .mybadge-danger { background-color: var(--danger); color: #fff; }
         .mybadge-pill { border-radius: 10rem; padding-left: 0.8rem; padding-right: 0.8rem; }
-
         .mytext-primary { color: var(--primary) !important; }
         .mytext-warning { color: var(--warning) !important; }
         .mytext-info { color: var(--info) !important; }
@@ -67,9 +64,6 @@
         .mybg-primary { background-color: var(--primary); }
         .mybg-warning { background-color: var(--warning); }
         .mybg-info { background-color: var(--info); }
-        .mybg-success { background-color: var(--success); }
-        .mybg-danger { background-color: var(--danger); }
-
         .r_small { font-size: 0.85rem; }
         .r_small_70 { font-size: 0.7rem; font-weight: 500; text-transform: uppercase; }
         .r_indent2 { margin-left: 0.5rem; margin-right: 0.25rem; }
@@ -93,17 +87,13 @@
             border: 2px solid #fff;
             box-shadow: 0 0 0 2px rgba(51,94,234,0.1);
         }
-
-        /* Vue 自定义标签页样式 */
         .vue-nav-pills {
             display: flex;
             padding-left: 0;
             margin-bottom: 1.5rem;
             list-style: none;
         }
-        .vue-nav-pills .nav-item {
-            margin-right: 0.5rem;
-        }
+        .vue-nav-pills .nav-item { margin-right: 0.5rem; }
         .vue-nav-pills .nav-link {
             color: var(--gray);
             border-radius: 0.5rem;
@@ -121,11 +111,7 @@
             background-color: var(--primary);
             color: #fff;
         }
-
-        /* Tab 内容过渡动画 */
-        .tab-pane {
-            display: none;
-        }
+        .tab-pane { display: none; }
         .tab-pane.active {
             display: block;
             animation: fadeIn 0.3s ease;
@@ -134,13 +120,123 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-
         table { color: #1b2a4e; }
         .underline { text-decoration: underline; text-underline-offset: 2px; }
+
+        /* 上传区域样式 */
+        .upload-area {
+            border: 2px dashed var(--primary);
+            border-radius: 1rem;
+            padding: 3rem 2rem;
+            text-align: center;
+            background: rgba(51, 94, 234, 0.02);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            background: rgba(51, 94, 234, 0.05);
+            border-color: var(--primary);
+        }
+        .upload-area.dragover {
+            background: rgba(51, 94, 234, 0.1);
+            border-color: var(--primary);
+            transform: scale(1.02);
+        }
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+        .upload-text {
+            color: var(--dark);
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+        .upload-hint {
+            color: var(--gray);
+            font-size: 0.85rem;
+        }
+        .file-input { display: none; }
+
+        /* 加载状态 */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(51, 94, 234, 0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .loading-text {
+            margin-top: 1rem;
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        /* 错误提示 */
+        .alert-custom {
+            border-radius: 0.5rem;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .alert-danger-custom {
+            background: rgba(223, 71, 89, 0.1);
+            border: 1px solid rgba(223, 71, 89, 0.2);
+            color: var(--danger);
+        }
+
+        /* 配置面板 */
+        .config-panel {
+            background: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .config-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 0.75rem;
+        }
+        .form-control-custom {
+            border: 1px solid #e2e8f0;
+            border-radius: 0.375rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            width: 100%;
+            transition: border-color 0.15s ease;
+        }
+        .form-control-custom:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(51, 94, 234, 0.1);
+        }
     </style>
 </head>
 <body>
 <div id="app">
+    <!-- 加载遮罩 -->
+    <div v-if="loading" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">{{ loadingText }}</div>
+    </div>
+
     <!-- 导航栏 -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
         <div class="container">
@@ -159,8 +255,70 @@
             <div class="row justify-content-center">
                 <div class="col-12 col-xl-11">
 
-                    <!-- 卡片容器 -->
-                    <div class="mycard mb-5">
+                    <!-- 错误提示 -->
+                    <div v-if="error" class="alert-custom alert-danger-custom">
+                        <i class="bi-exclamation-triangle-fill mr-2"></i>{{ error }}
+                        <button type="button" class="close" @click="error = ''">
+                            <span>&times;</span>
+                        </button>
+                    </div>
+
+                    <!-- 配置面板 -->
+                    <div class="mycard mb-4">
+                        <div class="mycard-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0"><i class="bi-gear-fill mr-2 mytext-primary"></i>ResumeSDK API 配置</h5>
+                                <button class="btn btn-sm btn-outline-primary" @click="showConfig = !showConfig">
+                                    {{ showConfig ? '收起' : '展开' }}
+                                </button>
+                            </div>
+                            <div v-show="showConfig" class="config-panel">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <label class="config-title">API 地址</label>
+                                        <input type="text" class="form-control-custom" v-model="config.apiUrl" placeholder="http://www.resumesdk.com/api/parse">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="config-title">UID</label>
+                                        <input type="text" class="form-control-custom" v-model="config.uid" placeholder="请输入 UID">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="config-title">PWD</label>
+                                        <input type="password" class="form-control-custom" v-model="config.pwd" placeholder="请输入 PWD">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="config-title">&nbsp;</label>
+                                        <button class="btn btn-primary btn-block" @click="saveConfig">保存配置</button>
+                                    </div>
+                                </div>
+                                <div class="mt-2 text-muted small">
+                                    <i class="bi-info-circle mr-1"></i>配置将保存在浏览器本地存储中
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 上传区域 (未解析时显示) -->
+                    <div v-if="!parsedData" class="mycard mb-5">
+                        <div class="mycard-body">
+                            <div class="upload-area"
+                                 @click="$refs.fileInput.click()"
+                                 @drop.prevent="handleDrop"
+                                 @dragover.prevent="dragover = true"
+                                 @dragleave.prevent="dragover = false"
+                                 :class="{ dragover: dragover }">
+                                <div class="upload-icon">
+                                    <i class="bi-cloud-upload-fill"></i>
+                                </div>
+                                <div class="upload-text">点击或拖拽上传简历文件</div>
+                                <div class="upload-hint">支持 PDF、Word、TXT、HTML 等 40+ 种格式，最大 10MB</div>
+                            </div>
+                            <input type="file" ref="fileInput" class="file-input" @change="handleFileSelect" accept=".pdf,.doc,.docx,.txt,.html,.htm,.rtf">
+                        </div>
+                    </div>
+
+                    <!-- 解析结果 (解析后显示) -->
+                    <div v-else class="mycard mb-5">
                         <!-- 头部信息 -->
                         <div class="mycard-header mybg-white">
                             <div class="row align-items-center">
@@ -195,13 +353,17 @@
 
                         <!-- 主体：标签页 -->
                         <div class="mycard-body">
-                            <!-- Vue 自定义标签导航 -->
-                            <ul class="vue-nav-pills">
-                                <li class="nav-item" v-for="tab in tabs" :key="tab.id">
-                                    <a :class="['nav-link', { active: activeTab === tab.id }]"
-                                       @click="switchTab(tab.id)">{{ tab.icon }} {{ tab.label }}</a>
-                                </li>
-                            </ul>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <ul class="vue-nav-pills mb-0">
+                                    <li class="nav-item" v-for="tab in tabs" :key="tab.id">
+                                        <a :class="['nav-link', { active: activeTab === tab.id }]"
+                                           @click="switchTab(tab.id)">{{ tab.icon }} {{ tab.label }}</a>
+                                    </li>
+                                </ul>
+                                <button class="btn btn-outline-primary btn-sm" @click="reset">
+                                    <i class="bi-arrow-clockwise mr-1"></i>重新上传
+                                </button>
+                            </div>
 
                             <!-- 标签内容 -->
                             <div class="tab-content">
@@ -221,6 +383,7 @@
 
                                         <tr><td colspan="4"><h5 class="row-bordered font-weight-bold mt-3"><i class="bi-play-fill mytext-primary r_indent2"></i>联系方式</h5></td></tr>
                                         <tr><td colspan="4"><span class="mytext-muted">联系电话:</span> {{ parserData.contact.phone }}</td></tr>
+                                        <tr><td colspan="4"><span class="mytext-muted">电子邮箱:</span> {{ parserData.contact.email }}</td></tr>
 
                                         <tr><td colspan="4"><h5 class="row-bordered font-weight-bold mt-3"><i class="bi-play-fill mytext-primary r_indent2"></i>期望工作</h5></td></tr>
                                         <tr><td colspan="4"><span class="mytext-muted">期望职位:</span> {{ parserData.expectation.position }}</td></tr>
@@ -228,7 +391,9 @@
                                         <tr><td colspan="4"><span class="mytext-muted">期望地点:</span> {{ parserData.expectation.location }}</td></tr>
 
                                         <tr><td colspan="4"><h5 class="row-bordered font-weight-bold mt-3"><i class="bi-play-fill mytext-primary r_indent2"></i>教育经历</h5></td></tr>
-                                        <tr><td colspan="4">{{ parserData.education.period }} {{ parserData.education.school }} · {{ parserData.education.major }} · {{ parserData.education.degree }}</td></tr>
+                                        <tr v-for="(edu, index) in parserData.educationList" :key="index">
+                                            <td colspan="4">{{ edu.period }} {{ edu.school }} · {{ edu.major }} · {{ edu.degree }}</td>
+                                        </tr>
 
                                         <tr><td colspan="4"><h5 class="row-bordered font-weight-bold mt-3"><i class="bi-play-fill mytext-primary r_indent2"></i>工作经历</h5></td></tr>
                                         <tr v-for="(work, index) in parserData.workExperience" :key="index">
@@ -297,7 +462,7 @@
     <!-- 页脚 -->
     <footer class="py-4 bg-white border-top text-center text-muted small">
         <div class="container">
-            <span>模仿 ResumeSDK 简历详情页 · 仅用于学习交流</span>
+            <span>Powered by ResumeSDK · 智能简历解析服务</span>
         </div>
     </footer>
 </div>
@@ -307,153 +472,389 @@
 
     createApp({
         setup() {
-            // 当前激活的标签页
+            // 状态
+            const loading = ref(false);
+            const loadingText = ref('正在解析简历...');
+            const error = ref('');
+            const dragover = ref(false);
+            const showConfig = ref(false);
             const activeTab = ref('parser');
+            const parsedData = ref(null);
 
             // 图表 DOM 引用
             const capacityChart = ref(null);
             const industryChart = ref(null);
-
-            // 图表实例
             let capacityChartInstance = null;
             let industryChartInstance = null;
 
-            // 标签页配置
+            // 配置
+            const config = ref({
+                apiUrl: localStorage.getItem('resumesdk_api_url') || 'http://www.resumesdk.com/api/parse',
+                uid: localStorage.getItem('resumesdk_uid') || '',
+                pwd: localStorage.getItem('resumesdk_pwd') || ''
+            });
+
+            // 标签页
             const tabs = [
                 { id: 'parser', label: '简历解析', icon: '📄' },
                 { id: 'profiler', label: '简历画像', icon: '🏷️' }
             ];
 
-            // 简历头部数据
-            const resumeData = {
-                name: '初婷',
-                position: '总账会计',
-                tags: [
-                    { text: '工作稳定', class: 'mybadge-primary', title: '亮点标签' },
-                    { text: '技能丰富', class: 'mybadge-primary', title: '亮点标签' },
-                    { text: '5-10K', class: 'mybadge-info', title: '预估薪资' },
-                    { text: '职业教育', class: 'mybadge-warning', title: '风险点' },
-                    { text: '空档期', class: 'mybadge-warning', title: '风险点' }
-                ],
-                gender: '女',
-                age: 36,
-                location: '长春',
-                experience: 12,
-                school: '吉林交通职业技术学院',
-                degree: '大专',
-                phone: '189****2347',
-                email: 'chuting@email.com',
-                avatar: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23335EEA'/%3E%3Ctext x='50' y='67' font-size='40' text-anchor='middle' fill='white' font-family='Arial'%3E初%3C/text%3E%3C/svg%3E"
+            // 简历头部数据（从解析结果生成）
+            const resumeData = ref({});
+
+            // 简历解析数据（从解析结果生成）
+            const parserData = ref({});
+
+            // 简历画像数据（从解析结果生成）
+            const profilerData = ref({});
+
+            // 保存配置
+            const saveConfig = () => {
+                localStorage.setItem('resumesdk_api_url', config.value.apiUrl);
+                localStorage.setItem('resumesdk_uid', config.value.uid);
+                localStorage.setItem('resumesdk_pwd', config.value.pwd);
+                showConfig.value = false;
+                alert('配置已保存');
             };
 
-            // 简历解析数据
-            const parserData = {
-                resumeType: '中文',
-                completeness: 60,
-                parseTime: '2026-04-21 12:53:00',
-                basicInfo: {
-                    name: '初婷',
-                    gender: '女',
-                    age: 36,
-                    workYears: '12年',
-                    school: '吉林交通职业技术学院',
-                    degree: '大专',
-                    currentPosition: '总账会计',
-                    currentCompany: '吉林省凝德医药有限公司'
-                },
-                contact: {
-                    phone: '18943972347'
-                },
-                expectation: {
-                    position: '会计',
-                    salary: '6000元/月',
-                    location: '长春'
-                },
-                education: {
-                    period: '2011~2014',
-                    school: '吉林交通职业技术学院',
-                    major: '电子商务',
-                    degree: '大专'
-                },
-                workExperience: [
-                    {
-                        period: '2023.05~2026.03',
-                        position: '总账会计',
-                        company: '吉林省凝德医药有限公司',
-                        description: '负责全盘账务、税务申报、成本核算、往来款项管理等。'
-                    },
-                    {
-                        period: '2020.03~2023.04',
-                        position: '会计',
-                        company: '吉林省聚星供应链管理有限公司',
-                        description: '负责财务核算、纳税申报、费用审核、指导出纳等。'
+            // 处理文件选择
+            const handleFileSelect = (event) => {
+                const file = event.target.files[0];
+                if (file) parseResume(file);
+            };
+
+            // 处理拖拽
+            const handleDrop = (event) => {
+                dragover.value = false;
+                const file = event.dataTransfer.files[0];
+                if (file) parseResume(file);
+            };
+
+            // 解析简历
+            const parseResume = async (file) => {
+                if (!config.value.uid || !config.value.pwd) {
+                    error.value = '请先配置 ResumeSDK UID 和 PWD';
+                    showConfig.value = true;
+                    return;
+                }
+
+                loading.value = true;
+                loadingText.value = '正在读取文件...';
+                error.value = '';
+
+                try {
+                    // 读取文件为 base64
+                    const base64 = await fileToBase64(file);
+                    loadingText.value = '正在解析简历...';
+
+                    // 调用 ResumeSDK API
+                    const response = await fetch(config.value.apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'uid': config.value.uid,
+                            'pwd': config.value.pwd
+                        },
+                        body: JSON.stringify({
+                            file_name: file.name,
+                            file_cont: base64,
+                            need_avatar: 1  // 启用头像解析
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API 请求失败: ${response.status}`);
                     }
-                ],
-                skills: ['账务处理', '税务申报', '汇算清缴', '财务核算', '全盘账务']
+
+                    const result = await response.json();
+
+                    if (result.status && result.status.code !== 200) {
+                        throw new Error(result.status.message || '解析失败');
+                    }
+
+                    // 转换数据
+                    transformData(result);
+                    parsedData.value = result;
+
+                } catch (err) {
+                    error.value = err.message || '解析失败，请检查配置和网络';
+                    console.error(err);
+                } finally {
+                    loading.value = false;
+                }
             };
 
-            // 简历画像数据
-            const profilerData = {
-                highlights: {
-                    count: 5,
-                    items: [
-                        '工作稳定：平均每段经历35个月',
-                        '会计师职能领域经验丰富',
-                        '会计/财务技能非常丰富'
-                    ]
-                },
-                risks: {
-                    count: 2,
-                    items: [
-                        '毕业于职业教育院校',
-                        '存在63个月职业空档期'
-                    ]
-                },
-                assessment: {
-                    count: 1,
-                    label: '预估市场薪资',
-                    value: '5-10K/月'
-                },
-                tags: [
+            // 文件转 base64
+            const fileToBase64 = (file) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const base64 = reader.result.split(',')[1];
+                        resolve(base64);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            };
+
+            // 转换 ResumeSDK 数据为页面数据
+            const transformData = (sdkResult) => {
+                const result = sdkResult.result || {};
+                const evalData = sdkResult.eval || {};
+                const tagsData = sdkResult.tags || {};
+
+                // 提取技能
+                const skills = result.skills ? result.skills.split(',').map(s => s.trim()).filter(s => s) : [];
+
+                // 提取教育经历
+                const educationList = (result.education_objs || []).map(edu => ({
+                    period: `${edu.start_date || ''}~${edu.end_date || ''}`,
+                    school: edu.school || '',
+                    major: edu.major || '',
+                    degree: edu.degree || ''
+                }));
+
+                // 提取工作经历
+                const workExperience = (result.job_exp_objs || []).map(job => ({
+                    period: `${job.start_date || ''}~${job.end_date || ''}`,
+                    position: job.title || '',
+                    company: job.company || '',
+                    description: job.description || ''
+                }));
+
+                // 设置简历头部数据
+                resumeData.value = {
+                    name: result.name || '未知',
+                    position: result.current_job_title || result.title || '未知职位',
+                    tags: generateTags(result, tagsData),
+                    gender: result.gender || '未知',
+                    age: result.age || 0,
+                    location: result.location || result.current_location || '未知',
+                    experience: calculateWorkYears(result.job_exp_objs),
+                    school: result.school || (educationList[0] && educationList[0].school) || '未知',
+                    degree: result.degree || (educationList[0] && educationList[0].degree) || '未知',
+                    phone: maskPhone(result.phone),
+                    email: result.email || '',
+                    avatar: extractAvatar(result)
+                };
+
+                // 设置解析数据
+                parserData.value = {
+                    resumeType: result.lang || '中文',
+                    completeness: result.resume_integrity || 0,
+                    parseTime: new Date().toLocaleString('zh-CN'),
+                    basicInfo: {
+                        name: result.name || '未知',
+                        gender: result.gender || '未知',
+                        age: result.age || 0,
+                        workYears: calculateWorkYears(result.job_exp_objs) + '年',
+                        school: result.school || (educationList[0] && educationList[0].school) || '未知',
+                        degree: result.degree || (educationList[0] && educationList[0].degree) || '未知',
+                        currentPosition: result.current_job_title || result.title || '未知',
+                        currentCompany: result.current_company || '未知'
+                    },
+                    contact: {
+                        phone: result.phone || '',
+                        email: result.email || ''
+                    },
+                    expectation: {
+                        position: result.desired_job_title || '未知',
+                        salary: result.desired_salary || '未知',
+                        location: result.desired_location || '未知'
+                    },
+                    educationList: educationList.length > 0 ? educationList : [{
+                        period: '未知',
+                        school: '未知',
+                        major: '未知',
+                        degree: '未知'
+                    }],
+                    workExperience: workExperience.length > 0 ? workExperience : [{
+                        period: '未知',
+                        position: '未知',
+                        company: '未知',
+                        description: ''
+                    }],
+                    skills: skills.length > 0 ? skills : ['暂无技能信息']
+                };
+
+                // 设置画像数据
+                profilerData.value = generateProfilerData(result, evalData, tagsData);
+            };
+
+            // 生成标签
+            const generateTags = (result, tagsData) => {
+                const tags = [];
+
+                // 根据评估数据生成标签
+                if (result.age && result.age < 35) {
+                    tags.push({ text: '年轻人才', class: 'mybadge-primary', title: '年龄优势' });
+                }
+
+                if (result.job_exp_objs && result.job_exp_objs.length >= 3) {
+                    tags.push({ text: '经验丰富', class: 'mybadge-primary', title: '工作稳定' });
+                }
+
+                // 薪资标签
+                if (result.desired_salary) {
+                    tags.push({ text: result.desired_salary, class: 'mybadge-info', title: '期望薪资' });
+                }
+
+                // 学历标签
+                if (result.degree && result.degree.includes('本科')) {
+                    tags.push({ text: '本科学历', class: 'mybadge-success', title: '学历标签' });
+                } else if (result.degree && result.degree.includes('硕士')) {
+                    tags.push({ text: '硕士学历', class: 'mybadge-success', title: '学历标签' });
+                }
+
+                // 如果没有标签，添加默认标签
+                if (tags.length === 0) {
+                    tags.push({ text: '简历已解析', class: 'mybadge-primary', title: '解析完成' });
+                }
+
+                return tags;
+            };
+
+            // 生成画像数据
+            const generateProfilerData = (result, evalData, tagsData) => {
+                const highlights = { count: 0, items: [] };
+                const risks = { count: 0, items: [] };
+
+                // 分析亮点
+                if (result.job_exp_objs) {
+                    const avgDuration = calculateAvgDuration(result.job_exp_objs);
+                    if (avgDuration >= 24) {
+                        highlights.count++;
+                        highlights.items.push(`工作稳定：平均每段经历${Math.round(avgDuration / 12 * 10) / 10}年`);
+                    }
+                }
+
+                if (result.skills && result.skills.split(',').length > 5) {
+                    highlights.count++;
+                    highlights.items.push('技能丰富：掌握多项专业技能');
+                }
+
+                // 分析风险
+                if (result.degree && (result.degree.includes('大专') || result.degree.includes('专科'))) {
+                    risks.count++;
+                    risks.items.push('学历偏低：大专学历');
+                }
+
+                // 标签分类
+                const tagCategories = [
                     {
                         category: '基本',
                         items: [
-                            { text: '女', class: 'mybadge-primary' },
-                            { text: '35-40岁', class: 'mybadge-primary' },
-                            { text: '10年以上经验', class: 'mybadge-primary' }
+                            { text: result.gender || '未知', class: 'mybadge-primary' },
+                            { text: (result.age ? result.age + '岁' : '未知年龄'), class: 'mybadge-primary' },
+                            { text: calculateWorkYears(result.job_exp_objs) + '年经验', class: 'mybadge-primary' }
                         ]
                     },
                     {
                         category: '教育',
                         items: [
-                            { text: '大专学历', class: 'mybadge-success' },
-                            { text: '电子商务专业', class: 'mybadge-success' }
+                            { text: result.degree || '未知学历', class: 'mybadge-success' },
+                            { text: result.major || '未知专业', class: 'mybadge-success' }
                         ]
                     },
                     {
                         category: '职能',
                         items: [
-                            { text: '总账会计', class: 'mybadge-info' },
-                            { text: '会计师', class: 'mybadge-info' }
-                        ]
-                    },
-                    {
-                        category: '证书',
-                        items: [
-                            { text: '会计从业资格证', class: 'mybadge-warning' },
-                            { text: '会计初级职称', class: 'mybadge-warning' }
-                        ]
-                    },
-                    {
-                        category: '技能',
-                        items: [
-                            { text: '账务处理', class: 'mybadge-danger' },
-                            { text: '税务申报', class: 'mybadge-danger' },
-                            { text: '财务', class: 'mybadge-danger' },
-                            { text: '汇算清缴', class: 'mybadge-danger' }
+                            { text: result.current_job_title || result.title || '未知职位', class: 'mybadge-info' }
                         ]
                     }
-                ]
+                ];
+
+                // 技能标签
+                const skills = result.skills ? result.skills.split(',').map(s => s.trim()).filter(s => s).slice(0, 6) : [];
+                if (skills.length > 0) {
+                    tagCategories.push({
+                        category: '技能',
+                        items: skills.map(s => ({ text: s, class: 'mybadge-danger' }))
+                    });
+                }
+
+                return {
+                    highlights,
+                    risks,
+                    assessment: {
+                        count: 1,
+                        label: '预估市场薪资',
+                        value: result.desired_salary || '面议'
+                    },
+                    tags: tagCategories
+                };
+            };
+
+            // 计算工作年限
+            const calculateWorkYears = (jobExps) => {
+                if (!jobExps || jobExps.length === 0) return 0;
+                let totalMonths = 0;
+                jobExps.forEach(job => {
+                    if (job.start_date) {
+                        const start = new Date(job.start_date);
+                        const end = job.end_date ? new Date(job.end_date) : new Date();
+                        totalMonths += (end - start) / (1000 * 60 * 60 * 24 * 30);
+                    }
+                });
+                return Math.round(totalMonths / 12);
+            };
+
+            // 计算平均工作时长（月）
+            const calculateAvgDuration = (jobExps) => {
+                if (!jobExps || jobExps.length === 0) return 0;
+                let totalMonths = 0;
+                let count = 0;
+                jobExps.forEach(job => {
+                    if (job.start_date) {
+                        const start = new Date(job.start_date);
+                        const end = job.end_date ? new Date(job.end_date) : new Date();
+                        totalMonths += (end - start) / (1000 * 60 * 60 * 24 * 30);
+                        count++;
+                    }
+                });
+                return count > 0 ? totalMonths / count : 0;
+            };
+
+            // 手机号脱敏
+            const maskPhone = (phone) => {
+                if (!phone) return '';
+                return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+            };
+
+            // 生成头像（占位符）
+            const generateAvatar = (name) => {
+                const char = name ? name[0] : '?';
+                return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23335EEA'/%3E%3Ctext x='50' y='67' font-size='40' text-anchor='middle' fill='white' font-family='Arial'%3E${encodeURIComponent(char)}%3C/text%3E%3C/svg%3E`;
+            };
+
+            // 从 ResumeSDK 响应中提取头像
+            const extractAvatar = (result) => {
+                // 优先使用 avatar_url 或 avatar_data
+                const avatarUrl = result.avatar_url || result.photo || result.head_img || result.photo_url;
+                const avatarData = result.avatar_data || result.photo_data;
+
+                if (avatarUrl) {
+                    // 如果已经是完整的 data URI 或 HTTP/HTTPS URL，直接使用
+                    if (avatarUrl.startsWith('data:') || avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+                        return avatarUrl;
+                    }
+                    return avatarUrl;
+                } else if (avatarData) {
+                    // 根据 base64 数据特征判断图片格式
+                    let mimeType = 'image/jpeg'; // 默认 JPEG
+                    if (avatarData.startsWith('iVBOR')) {
+                        mimeType = 'image/png';
+                    } else if (avatarData.startsWith('/9j/') || avatarData.startsWith('/9j')) {
+                        mimeType = 'image/jpeg';
+                    } else if (avatarData.startsWith('R0lGOD')) {
+                        mimeType = 'image/gif';
+                    }
+                    return `data:${mimeType};base64,${avatarData}`;
+                }
+
+                // 如果没有真实头像数据，返回生成的占位符
+                return generateAvatar(result.name);
             };
 
             // 切换标签页
@@ -461,9 +862,9 @@
                 activeTab.value = tabId;
             };
 
-            // 初始化能力指数图表
-            const initCapacityChart = () => {
-                if (!capacityChart.value) return;
+            // 初始化图表
+            const initCharts = () => {
+                if (!capacityChart.value || !industryChart.value) return;
 
                 capacityChartInstance = echarts.init(capacityChart.value);
                 capacityChartInstance.setOption({
@@ -482,28 +883,23 @@
                     },
                     series: [{
                         type: 'radar',
-                        data: [{ value: [50, 58, 50, 50, 50, 50], areaStyle: { color: 'rgba(51, 94, 234, 0.2)' } }],
+                        data: [{ value: [60, 70, 50, 60, 50, 40], areaStyle: { color: 'rgba(51, 94, 234, 0.2)' } }],
                         lineStyle: { color: '#335EEA', width: 2 },
                         itemStyle: { color: '#335EEA' }
                     }]
                 });
-            };
-
-            // 初始化行业匹配度图表
-            const initIndustryChart = () => {
-                if (!industryChart.value) return;
 
                 industryChartInstance = echarts.init(industryChart.value);
                 industryChartInstance.setOption({
                     radar: {
                         indicator: [
-                            { name: '物流/运输', max: 100 },
+                            { name: '互联网', max: 100 },
+                            { name: '金融', max: 100 },
                             { name: '专业服务', max: 100 },
-                            { name: '计算机/互联网', max: 100 },
-                            { name: '政府/非营利', max: 100 },
-                            { name: '广告/媒体', max: 100 },
-                            { name: '能源/化工', max: 100 },
-                            { name: '房地产/建筑', max: 100 }
+                            { name: '制造业', max: 100 },
+                            { name: '教育', max: 100 },
+                            { name: '医疗', max: 100 },
+                            { name: '其他', max: 100 }
                         ],
                         shape: 'circle',
                         center: ['50%', '45%'],
@@ -511,23 +907,37 @@
                     },
                     series: [{
                         type: 'radar',
-                        data: [{ value: [66, 66, 66, 50, 50, 50, 50], areaStyle: { color: 'rgba(51, 94, 234, 0.15)' } }],
+                        data: [{ value: [50, 40, 60, 50, 30, 40, 50], areaStyle: { color: 'rgba(51, 94, 234, 0.15)' } }],
                         lineStyle: { color: '#335EEA', width: 2 }
                     }]
                 });
             };
 
-            // 监听标签页切换，初始化图表
+            // 重置
+            const reset = () => {
+                parsedData.value = null;
+                resumeData.value = {};
+                parserData.value = {};
+                profilerData.value = {};
+                activeTab.value = 'parser';
+                if (capacityChartInstance) {
+                    capacityChartInstance.dispose();
+                    capacityChartInstance = null;
+                }
+                if (industryChartInstance) {
+                    industryChartInstance.dispose();
+                    industryChartInstance = null;
+                }
+            };
+
+            // 监听标签页切换
             watch(activeTab, (newTab) => {
                 if (newTab === 'profiler') {
-                    nextTick(() => {
-                        initCapacityChart();
-                        initIndustryChart();
-                    });
+                    nextTick(() => initCharts());
                 }
             });
 
-            // 窗口大小改变时自适应
+            // 窗口大小改变
             const handleResize = () => {
                 if (capacityChartInstance) capacityChartInstance.resize();
                 if (industryChartInstance) industryChartInstance.resize();
@@ -538,14 +948,25 @@
             });
 
             return {
+                loading,
+                loadingText,
+                error,
+                dragover,
+                showConfig,
+                config,
                 activeTab,
                 tabs,
+                parsedData,
                 resumeData,
                 parserData,
                 profilerData,
-                switchTab,
                 capacityChart,
-                industryChart
+                industryChart,
+                saveConfig,
+                handleFileSelect,
+                handleDrop,
+                switchTab,
+                reset
             };
         }
     }).mount('#app');

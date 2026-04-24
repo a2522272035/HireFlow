@@ -29,8 +29,28 @@ async def upload_resume(file: UploadFile = File(...)) -> dict:
         tmp_path = tmp_file.name
 
     try:
+        # 调试：打印解析器配置
+        print(f"[DEBUG] Parser config: api_url={parser.api_url}, uid={parser.uid}, need_avatar will be sent")
+        
         # 使用 ResumeSDK 解析简历
         parsed_data = await parser.parse(tmp_path, file_name=file.filename)
+        
+        # 调试：打印原始响应中的头像字段
+        raw_result = parsed_data.get("raw_result", {})
+        result_data = raw_result.get("result", {})
+        print(f"[DEBUG] ResumeSDK response avatar_url: {result_data.get('avatar_url', 'None')}")
+        print(f"[DEBUG] ResumeSDK response avatar_data: {'Present' if result_data.get('avatar_data') else 'None'}")
+        
+        # 调试：打印转换后的 parsed_data 中的头像字段
+        print(f"[DEBUG] parsed_data.avatar_data (根级别): {'Present' if parsed_data.get('avatar_data') else 'None'}")
+        if parsed_data.get('avatar_data'):
+            print(f"[DEBUG] parsed_data.avatar_data length: {len(parsed_data['avatar_data'])}")
+            # 安全打印预览，避免编码问题
+            avatar_preview = parsed_data['avatar_data'][:50]
+            try:
+                print(f"[DEBUG] parsed_data.avatar_data preview: {avatar_preview}...")
+            except UnicodeEncodeError:
+                print(f"[DEBUG] parsed_data.avatar_data preview: [包含非ASCII字符，已跳过详细打印]")
 
         # 构建完整的响应数据
         response = {
@@ -38,6 +58,8 @@ async def upload_resume(file: UploadFile = File(...)) -> dict:
             "filename": file.filename,
             "file_size": len(content),
             "parsed_data": parsed_data,
+            # 添加原始 ResumeSDK 响应供调试
+            "raw_resumesdk_response": parsed_data.get("raw_result", {}),
             # 提取关键字段便于前端展示
             "extracted_fields": {
                 "name": parsed_data.get("name"),
@@ -70,10 +92,12 @@ async def upload_resume(file: UploadFile = File(...)) -> dict:
         return response
 
     except Exception as e:
+        # 确保错误消息不包含非ASCII字符，避免GBK编码问题
+        error_msg = str(e).encode('ascii', 'replace').decode('ascii')
         return {
             "success": False,
             "filename": file.filename,
-            "error": str(e),
+            "error": error_msg,
             "error_type": type(e).__name__,
         }
     finally:

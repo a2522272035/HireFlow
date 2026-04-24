@@ -57,4 +57,4 @@ app.include_router(wecom.router, prefix="/api/v1/wecom", tags=["wecom"])
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8002)

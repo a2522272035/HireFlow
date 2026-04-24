@@ -32,8 +32,8 @@ class Settings(BaseSettings):
 
     # ResumeSDK API
     RESUMESDK_API_URL: str = "http://www.resumesdk.com/api/parse"
-    RESUMESDK_UID: str | None = None
-    RESUMESDK_PWD: str | None = None
+    RESUMESDK_UID: str = "2604200"
+    RESUMESDK_PWD: str = "u1e2ELoHUFf0"
 
     # WeCom
     WECOM_CORP_ID: str | None = None

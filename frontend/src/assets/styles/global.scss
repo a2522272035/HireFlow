@@ -9,12 +9,19 @@ html,
 body {
   font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
-  font-size: 14px;
+  font-size: 16px;
   color: #303133;
   background-color: #f5f7fa;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+h1 { font-size: 2.5rem; }
+h2 { font-size: 2rem; }
+h3 { font-size: 1.75rem; }
+h4 { font-size: 1.5rem; }
+h5 { font-size: 1.25rem; font-weight: 500; margin: 0.5rem 0; }
+h6 { font-size: 1rem; font-weight: 500; margin: 0.5rem 0; }
 
 // Layout
 .container {

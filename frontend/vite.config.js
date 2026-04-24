@@ -14,13 +14,13 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8002',
         changeOrigin: true,
         timeout: 300000, // 5分钟超时
         proxyTimeout: 300000,
       },
       '/ws': {
-        target: 'ws://localhost:8000',
+        target: 'ws://localhost:8002',
         ws: true,
       },
     },
