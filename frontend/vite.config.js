@@ -16,8 +16,17 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8002',
         changeOrigin: true,
-        timeout: 300000, // 5分钟超时
+        timeout: 300000,
         proxyTimeout: 300000,
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            if (proxyRes.headers['content-type']?.includes('text/event-stream')) {
+              proxyRes.headers['cache-control'] = 'no-cache';
+              proxyRes.headers['connection'] = 'keep-alive';
+              proxyRes.headers['x-accel-buffering'] = 'no';
+            }
+          });
+        },
       },
       '/ws': {
         target: 'ws://localhost:8002',

@@ -1,5 +1,10 @@
 <template>
-  <div class="resume-analysis">
+  <div class="resume-analysis" :class="{ 'ai-panel-open': showAIPanel }">
+    <button class="ai-panel-toggle-btn" :class="{ 'panel-open': showAIPanel }" @click="showAIPanel = !showAIPanel">
+      <span class="ai-icon">🤖</span>
+      <span>AI面试助手</span>
+    </button>
+
     <div v-if="loading" class="loading-overlay">
       <div class="spinner"></div>
       <div class="loading-text">{{ loadingText }}</div>
@@ -289,7 +294,7 @@
             </div>
           </div>
 
-          <div v-show="activeTab === 'profiler'" class="tab-content">
+          <div v-if="activeTab === 'profiler'" class="tab-content">
             <table class="w-100" style="font-size:90%;">
               <tr>
                 <td colspan="4"><h5 class="row-bordered font-weight-bold"><i class="bi-play-fill mytext-primary r_indent2"></i>简历亮点</h5></td>
@@ -387,6 +392,13 @@
         </div>
       </template>
     </div>
+
+    <AIInterviewPanel
+      v-show="showAIPanel && parsedData"
+      :resume-data="resumeData"
+      :profiler-data="profilerData"
+      @close="showAIPanel = false"
+    />
   </div>
 </template>
 
@@ -397,6 +409,7 @@ import { use } from 'echarts/core'
 import { RadarChart, PieChart } from 'echarts/charts'
 import { TooltipComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import AIInterviewPanel from '@/components/common/AIInterviewPanel.vue'
 
 use([RadarChart, PieChart, TooltipComponent, LegendComponent, CanvasRenderer])
 
@@ -408,6 +421,7 @@ const error = ref('')
 const dragover = ref(false)
 const activeTab = ref('parser')
 const parsedData = ref(null)
+const showAIPanel = ref(false)
 
 const resumeData = ref({})
 const parserData = ref({})
@@ -455,9 +469,12 @@ const parseResume = async (file) => {
   loading.value = true
   loadingText.value = '正在读取文件...'
   error.value = ''
+  
+  await nextTick()
 
   try {
     loadingText.value = '正在上传并解析简历...'
+    await nextTick()
 
     const formData = new FormData()
     formData.append('file', file)
@@ -557,6 +574,57 @@ const transformData = (parsedData, avatarData) => {
 
   const finalAvatarUrl = avatarData || result.avatar_data || ''
 
+  const workExps = result.job_exp_objs || []
+  const educations = result.edu_exp_objs || []
+  const skillsList = result.skills_objs || result.skills || []
+  const certificatesList = result.all_cert_objs || result.certificate_objs || []
+  const projects = result.project_objs || []
+
+  const mergeSkills = (rawSkills) => {
+    if (!Array.isArray(rawSkills) || rawSkills.length === 0) return '未提供'
+    
+    const skillNames = rawSkills.map(s => {
+      if (typeof s === 'string') return s
+      if (typeof s === 'object' && s !== null) return s.skill_name || s.skills_name || s.name || ''
+      return String(s)
+    }).filter(Boolean)
+    
+    const skillGroups = [
+      { name: '总账核算', keywords: ['总账会计', '总账', '账务处理', '财务核算', '会计账务', '财务账务管理', '账务', '明细账', '核算', '结转'] },
+      { name: '税务管理', keywords: ['税务处理', '税务申报', '纳税申报', '汇算清缴', '缴纳税款', '规避税务风险', '纳税申报表', '税务筹划', '税务合规', '所得税', '企业所得税', '税务机关', '税款'] },
+      { name: '票据管理', keywords: ['票据管理', '发票管理', '财务票据', '普通发票', '费用报销', '原始凭证审核', '单据'] },
+      { name: '财务报表', keywords: ['资产负债表', '利润表', '现金流量表', '账实相符'] },
+      { name: '往来管理', keywords: ['应付账款', '客户对账', '款项管理', '核销'] },
+      { name: '审计对接', keywords: ['外部审计', '内部审计', '审计报告', '工商年检'] },
+      { name: '成本核算', keywords: ['成本核算', '成本全盘账务', '成本', '费用支出', '费用'] },
+      { name: '出纳管理', keywords: ['出纳', '归档'] },
+      { name: '财务管理', keywords: ['财务管理制度', '财务对接', '财务税务申报'] },
+    ]
+    
+    const merged = new Set()
+    const remaining = []
+    
+    for (const skill of skillNames) {
+      const skillStr = String(skill).trim()
+      let matched = false
+      for (const group of skillGroups) {
+        if (group.keywords.some(kw => skillStr.includes(kw) || kw.includes(skillStr))) {
+          merged.add(group.name)
+          matched = true
+          break
+        }
+      }
+      if (!matched) {
+        remaining.push(skillStr)
+      }
+    }
+    
+    const result = [...merged, ...remaining.slice(0, 3)]
+    return result.length > 0 ? result.join('、') : '未提供'
+  }
+
+  const mergedSkills = mergeSkills(skillsList)
+
   resumeData.value = {
     name: result.name || '未知',
     position: result.work_position || result.current_job_title || result.title || '未知职位',
@@ -569,7 +637,32 @@ const transformData = (parsedData, avatarData) => {
     degree: result.degree || (educationList[0] && educationList[0].degree) || '未知',
     phone: maskPhone(result.phone),
     email: result.email || '',
-    avatar: finalAvatarUrl
+    avatar: finalAvatarUrl,
+    expected_salary: result.expect_salary || result.desired_salary || '未提供',
+    certificates: certificatesList.length > 0 ? certificatesList.map(c => c.cert_name || c.certificate_name).filter(Boolean) : '未提供',
+    skills: mergedSkills,
+    major: result.major || (educations[0] && educations[0].major) || '未提供',
+    self_evaluation: result.self_evaluation || result.cont_my_desc || result.personal_summary || '',
+    current_company: result.work_company || result.current_company || '',
+    current_function_type: workPosTypeP || result.current_function_type || '',
+    work_experiences: workExps.map(job => ({
+      company: job.job_company || job.company || '',
+      position: job.job_pos_name || job.position || '',
+      duration: job.job_duration || job.period || '',
+      description: job.job_desc || job.description || ''
+    })),
+    education_experiences: educations.map(edu => ({
+      school: edu.edu_school_name || edu.school || '',
+      major: edu.edu_major || edu.major || '',
+      degree: edu.edu_degree_name || edu.degree || '',
+      duration: edu.edu_time || edu.period || ''
+    })),
+    project_experiences: projects.map(p => ({
+      name: p.project_name || '',
+      role: p.project_role || '',
+      duration: p.project_time || '',
+      description: p.project_desc || ''
+    }))
   }
 
   const certificates = result.all_cert_objs && Array.isArray(result.all_cert_objs)
@@ -635,8 +728,9 @@ const generateTags = (result) => {
     tags.push({ text: '经验丰富', type: 'success' })
   }
 
-  if (result.desired_salary) {
-    tags.push({ text: result.desired_salary, type: 'info' })
+  const desiredSalary = result.desired_salary || result.expect_salary || ''
+  if (desiredSalary) {
+    tags.push({ text: desiredSalary, type: 'info' })
   }
 
   if (result.degree) {
@@ -661,14 +755,21 @@ const generateProfilerData = (result, evalData, tagsData, certificates = []) => 
   const risks = { count: 0, items: [] }
   let salaryBadge = ''
 
-  if (evalData && evalData.salary) {
+  // 优先使用候选人自己的期望薪资，其次使用AI评估薪资
+  if (result.expect_salary) {
+    const salaryStr = result.expect_salary.replace(/[,，\s]/g, '')
+    const salaryMatch = salaryStr.match(/([\d.]+)/)
+    if (salaryMatch) {
+      const num = parseFloat(salaryMatch[1])
+      if (num > 100) {
+        salaryBadge = `${Math.round(num / 1000)}K`
+      } else {
+        salaryBadge = `${num}K`
+      }
+    }
+  } else if (evalData && evalData.salary) {
     const salaryK = Math.round(evalData.salary / 1000)
     salaryBadge = `${salaryK}K`
-  } else if (result.expect_salary) {
-    const salaryMatch = result.expect_salary.match(/([\d.]+)/)
-    if (salaryMatch) {
-      salaryBadge = `${salaryMatch[1]}K`
-    }
   }
 
   // ===== 简历亮点 =====
@@ -1191,6 +1292,49 @@ const reset = () => {
   min-height: 100vh;
   background: #f5f7fb;
   padding: 0;
+
+  &.ai-panel-open {
+    .main-container {
+      margin-right: 560px;
+      transform: translateX(-12%);
+    }
+  }
+}
+
+.main-container {
+  transition: margin-right 0.3s ease, transform 0.3s ease;
+}
+
+.ai-panel-toggle-btn {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  z-index: 201;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  transition: right 0.3s ease, box-shadow 0.3s ease;
+
+  &.panel-open {
+    right: 560px;
+  }
+
+  &:hover {
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+  }
+
+  .ai-icon {
+    font-size: 18px;
+  }
 }
 
 .loading-overlay {

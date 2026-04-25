@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import interview, policy, report, resume, wecom
+from app.api.v1 import ai_assistant, interview, policy, report, resume, wecom
 from app.config import settings
 from app.core.database import engine
 from app.models import Base
@@ -52,6 +52,7 @@ app.include_router(interview.router, prefix="/api/v1/interviews", tags=["intervi
 app.include_router(report.router, prefix="/api/v1/reports", tags=["reports"])
 app.include_router(policy.router, prefix="/api/v1/policies", tags=["policies"])
 app.include_router(wecom.router, prefix="/api/v1/wecom", tags=["wecom"])
+app.include_router(ai_assistant.router, prefix="/api/v1/ai", tags=["ai-assistant"])
 
 
 if __name__ == "__main__":
