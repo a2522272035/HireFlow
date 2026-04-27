@@ -40,6 +40,16 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+async def root() -> dict[str, str]:
+    """Root endpoint."""
+    return {
+        "service": settings.APP_NAME,
+        "description": "智能招聘面试辅助系统",
+        "version": "0.2.0",
+    }
+
+
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     """Health check endpoint."""
