@@ -50,7 +50,7 @@ class Settings(BaseSettings):
 
     # File Upload
     UPLOAD_DIR: str = "./data/uploads"
-    MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB
+    MAX_UPLOAD_SIZE: int = 30 * 1024 * 1024  # 30MB
 
     # CORS - 使用字符串形式，在代码中解析
     CORS_ORIGINS: str = "*"

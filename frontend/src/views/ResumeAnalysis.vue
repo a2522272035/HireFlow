@@ -461,8 +461,8 @@ const parseResume = async (file) => {
     return
   }
 
-  if (file.size > 10 * 1024 * 1024) {
-    error.value = '文件大小超过 10MB 限制'
+  if (file.size > 30 * 1024 * 1024) {
+    error.value = '文件大小超过 30MB 限制'
     return
   }
 
