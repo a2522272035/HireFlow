@@ -111,7 +111,7 @@
 <script setup>
 import { ref, watch, nextTick, computed } from 'vue'
 
-const API_BASE = 'http://localhost:8002/api/v1/ai'
+const API_BASE = '/api'
 
 const props = defineProps({
   resumeData: {
