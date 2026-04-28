@@ -30,7 +30,7 @@
               <i class="bi-cloud-upload-fill"></i>
             </div>
             <div class="upload-title">点击或拖拽上传简历文件</div>
-            <div class="upload-desc">支持 PDF、Word、TXT、HTML 等 40+ 种格式，最大 10MB</div>
+            <div class="upload-desc">支持 PDF、Word、TXT、HTML 等 40+ 种格式，最大 30MB</div>
             <div class="upload-formats">
               <span class="format-tag">PDF</span>
               <span class="format-tag">DOC</span>

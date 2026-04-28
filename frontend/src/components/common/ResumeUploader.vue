@@ -18,7 +18,7 @@
         拖拽文件到此处或 <em>点击上传</em>
       </div>
       <div class="upload-tip">
-        支持 PDF、Word 格式，文件大小不超过 10MB
+        支持 PDF、Word 格式，文件大小不超过 30MB
       </div>
     </div>
   </div>
