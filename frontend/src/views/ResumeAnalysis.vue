@@ -276,7 +276,14 @@
               </div>
               <div class="r_content">
                 <div v-if="parserData.skills && parserData.skills.length > 0">
-                  <span v-for="(skill, index) in parserData.skills" :key="index" class="mybadge mybadge-info mybadge-pill me-2 mb-2">{{ skill }}</span>
+                  <span v-for="(skill, index) in parserData.skills" :key="index"
+                        class="mybadge mybadge-info mybadge-pill me-2 mb-2 term-clickable skill-term"
+                        tabindex="0"
+                        @mouseenter="explainTerm(skill, $event)"
+                        @focus="explainTerm(skill, $event)"
+                        @click="explainTerm(skill, $event)">
+                    {{ skill }}
+                  </span>
                 </div>
                 <div v-else class="empty-hint">暂无技能信息</div>
               </div>
@@ -338,7 +345,17 @@
                     <div v-for="(sub, sIndex) in tagCat.subs" :key="'sub-'+sIndex" class="my-1 ml-4">
                       <i class="r_circle mx-1" :class="'mybg-' + tagCat.badgeColor"></i>
                       <span class="r_small_70">{{ sub.label }}</span>
-                      <span v-for="(item, iIndex) in sub.items" :key="'item-'+iIndex" class="mybadge" :class="'mybadge-' + tagCat.badgeColor" :data-original-title="item.tooltip">{{ item.text }}</span>
+                      <span
+                        v-for="(item, iIndex) in sub.items"
+                        :key="'item-'+iIndex"
+                        class="mybadge term-clickable"
+                        :class="'mybadge-' + tagCat.badgeColor"
+                        :data-original-title="item.tooltip"
+                        tabindex="0"
+                        @mouseenter="explainTerm(item.text, $event)"
+                        @focus="explainTerm(item.text, $event)"
+                        @click="explainTerm(item.text, $event)"
+                      >{{ item.text }}</span>
                     </div>
                   </h5>
                 </td>
@@ -399,6 +416,7 @@
       :profiler-data="profilerData"
       @close="showAIPanel = false"
     />
+    <TermTooltip ref="termTooltipRef" />
   </div>
 </template>
 
@@ -410,6 +428,7 @@ import { RadarChart, PieChart } from 'echarts/charts'
 import { TooltipComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import AIInterviewPanel from '@/components/common/AIInterviewPanel.vue'
+import TermTooltip from '@/components/common/TermTooltip.vue'
 
 use([RadarChart, PieChart, TooltipComponent, LegendComponent, CanvasRenderer])
 
@@ -433,6 +452,20 @@ const industryChart2Option = ref({})
 const positionTypeChartOption = ref({})
 
 const avatarUrl = ref('')
+const termTooltipRef = ref(null)
+
+function explainTerm(term, event) {
+  if (termTooltipRef.value) {
+    termTooltipRef.value.show(term, event)
+  }
+}
+
+// 监听AI问答事件
+window.addEventListener('ai-interview-ask', (e) => {
+  showAIPanel.value = true
+  const inputEvent = new CustomEvent('ai-ask-message', { detail: e.detail })
+  window.dispatchEvent(inputEvent)
+})
 
 const highlightBadges = computed(() => {
   return profilerData.value?.highlightBadges || []
@@ -527,6 +560,58 @@ const fileToBase64 = (file) => {
   })
 }
 
+const toFiniteNumber = (value) => {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : 0
+}
+
+const formatSdkWeight = (value) => {
+  const num = toFiniteNumber(value)
+  if (!num) return ''
+  return num <= 1 ? `权重：${Math.round(num * 100)}%` : `权重：${Math.round(num * 100) / 100}`
+}
+
+const getTermName = (item) => {
+  if (!item || typeof item !== 'object') return ''
+  return item.tag_name || item.skills_name || item.skill_name || item.cert_name || item.certificate_name || item.name || ''
+}
+
+const buildSdkTermPayload = (item, source) => {
+  const explicit = item.tag_desc || item.tag_explain || item.explain || item.explanation || item.desc || item.description || ''
+  const meta = [
+    `来源：${source}`,
+    item.tag_category ? `类型：${item.tag_category}` : '',
+    formatSdkWeight(item.tag_weight)
+  ].filter(Boolean)
+
+  return {
+    source,
+    explanation: explicit,
+    sdkMeta: meta.join('\n'),
+    context: [explicit, ...meta].filter(Boolean).join('\n'),
+    aiFallback: !explicit
+  }
+}
+
+const addTermInfo = (map, item, source) => {
+  const name = getTermName(item)
+  if (!name) return
+  map[name] = buildSdkTermPayload(item, source)
+}
+
+const buildTermExplanationMap = (result, tagsData, certificates = []) => {
+  const map = {}
+
+  ;(result.skills_objs || []).forEach(item => addTermInfo(map, item, 'ResumeSDK 技能抽取'))
+  ;(tagsData.skills_tags || []).forEach(item => addTermInfo(map, item, 'ResumeSDK 技能标签'))
+  ;(tagsData.pos_tags || []).forEach(item => addTermInfo(map, item, 'ResumeSDK 职位标签'))
+  ;(tagsData.pos_types || []).forEach(item => addTermInfo(map, item, 'ResumeSDK 职能标签'))
+  ;(tagsData.industries || []).forEach(item => addTermInfo(map, item, 'ResumeSDK 行业标签'))
+  ;(certificates || []).forEach(item => addTermInfo(map, item, 'ResumeSDK 证书抽取'))
+
+  return map
+}
+
 const transformData = (parsedData, avatarData) => {
   const result = parsedData.raw_result?.result || {}
   const evalData = parsedData.eval || {}
@@ -579,6 +664,7 @@ const transformData = (parsedData, avatarData) => {
   const skillsList = result.skills_objs || result.skills || []
   const certificatesList = result.all_cert_objs || result.certificate_objs || []
   const projects = result.project_objs || []
+  termExplanationMap.value = buildTermExplanationMap(result, tagsData, certificatesList)
 
   const mergeSkills = (rawSkills) => {
     if (!Array.isArray(rawSkills) || rawSkills.length === 0) return '未提供'
@@ -714,7 +800,7 @@ const transformData = (parsedData, avatarData) => {
   const industryData = tagsData.industries || []
   const posTypeData = tagsData.pos_types || []
   profilerData.value.hasIndustryData = industryData.length > 0
-  updateChartOptions(evalData, industryData, posTypeData)
+  updateChartOptions(evalData, industryData, posTypeData, result, tagsData, certificates)
 }
 
 const generateTags = (result) => {
@@ -1066,128 +1152,185 @@ const generateProfilerData = (result, evalData, tagsData, certificates = []) => 
   }
 }
 
-const updateChartOptions = (evalData, industryData = [], posTypeData = []) => {
-  capacityChartOption.value = {
-    tooltip: {
-      trigger: 'item'
-    },
-    radar: {
-      indicator: [
-        { name: '教育背景', max: 100 },
-        { name: '工作能力', max: 100 },
-        { name: '管理能力', max: 100 },
-        { name: '社会能力', max: 100 },
-        { name: '语言能力', max: 100 },
-        { name: '荣誉指数', max: 100 }
-      ],
-      shape: 'circle',
-      center: ['50%', '50%'],
-      radius: '65%',
-      axisName: {
-        color: '#4a5568',
-        fontSize: 12
-      },
-      splitArea: {
-        areaStyle: {
-          color: ['rgba(51, 94, 234, 0.02)', 'rgba(51, 94, 234, 0.05)']
-        }
-      },
-      axisLine: {
-        lineStyle: {
-          color: 'rgba(51, 94, 234, 0.15)'
-        }
-      }
-    },
-    series: [{
-      type: 'radar',
-      data: [{
-        value: [60, 70, 50, 60, 50, 40],
-        name: '能力指数',
-        areaStyle: {
-          color: 'rgba(51, 94, 234, 0.25)'
-        },
-        lineStyle: {
-          color: '#335EEA',
-          width: 2
-        },
-        itemStyle: {
-          color: '#335EEA'
-        }
-      }]
-    }]
+const clampScore = (value, min = 0, max = 100) => Math.max(min, Math.min(max, Math.round(value)))
+
+const pickEvalScore = (evalData, keys) => {
+  for (const key of keys) {
+    const value = toFiniteNumber(evalData?.[key])
+    if (value) return value <= 1 ? value * 100 : value
+  }
+  return 0
+}
+
+const hasText = (text, words) => words.some(word => String(text || '').includes(word))
+
+const scoreEducation = (result) => {
+  const degree = result.degree || ''
+  const collegeType = String(result.college_type || '')
+  let score = 45
+
+  if (hasText(degree, ['博士'])) score = 95
+  else if (hasText(degree, ['硕士', '研究生'])) score = 86
+  else if (hasText(degree, ['本科'])) score = 76
+  else if (hasText(degree, ['大专', '专科'])) score = 62
+
+  const collegeBonus = {
+    1: 3,
+    2: 8,
+    3: 10,
+    4: 9,
+    5: -4,
+    6: -6,
+    7: 6
   }
 
-  industryChartOption.value = {
-    tooltip: {
-      trigger: 'item'
+  return clampScore(score + (collegeBonus[collegeType] || 0), 35, 100)
+}
+
+const getSkillCount = (result, tagsData) => {
+  if (Array.isArray(result.skills_objs)) return result.skills_objs.length
+  if (Array.isArray(tagsData.skills_tags)) return tagsData.skills_tags.length
+  if (Array.isArray(result.skills)) return result.skills.length
+  if (typeof result.skills === 'string') return result.skills.split(',').filter(Boolean).length
+  return 0
+}
+
+const buildCapacityValues = (evalData, result, tagsData, certificates = []) => {
+  const jobExps = result.job_exp_objs || []
+  const workYears = toFiniteNumber(result.work_year_norm || result.work_year || result.work_year_inf)
+  const skillCount = getSkillCount(result, tagsData)
+  const titleText = [
+    result.work_position,
+    result.current_job_title,
+    ...(jobExps || []).map(job => job.job_position)
+  ].filter(Boolean).join(' ')
+  const softSkillCount = (tagsData.skills_tags || []).filter(item =>
+    hasText(item.tag_name, ['沟通', '协调', '团队', '责任', '管理', '组织', '表达', '合作'])
+  ).length
+  const certCount = Array.isArray(certificates) ? certificates.length : 0
+  const langCount = Array.isArray(result.lang_objs) ? result.lang_objs.length : 0
+
+  return [
+    pickEvalScore(evalData, ['education_score', 'edu_score', 'education', 'edu']) || scoreEducation(result),
+    pickEvalScore(evalData, ['work_score', 'work_ability', 'job_score', 'career_score']) || clampScore(45 + workYears * 4 + Math.min(skillCount, 12) * 2 + jobExps.length * 3, 35, 96),
+    pickEvalScore(evalData, ['management_score', 'manage_score', 'management']) || clampScore((hasText(titleText, ['经理', '主管', '负责人', '总监', '管理']) ? 62 : 42) + Math.min(workYears, 12) * 2, 30, 92),
+    pickEvalScore(evalData, ['social_score', 'communication_score', 'social']) || clampScore(48 + Math.min(softSkillCount, 6) * 7 + Math.min(jobExps.length, 4) * 4, 35, 90),
+    pickEvalScore(evalData, ['language_score', 'lang_score', 'language']) || clampScore(langCount ? 55 + langCount * 12 : 45, 30, 90),
+    pickEvalScore(evalData, ['honor_score', 'certificate_score', 'honor']) || clampScore(38 + certCount * 14 + Math.min(toFiniteNumber(result.resume_integrity), 100) * 0.15, 30, 95)
+  ]
+}
+
+const noDataChartOption = (text) => ({
+  title: {
+    text,
+    left: 'center',
+    top: 'middle',
+    textStyle: {
+      color: '#9aabbf',
+      fontSize: 13,
+      fontWeight: 500
+    }
+  },
+  tooltip: { show: false },
+  series: []
+})
+
+const radarOption = (labels, values, name, color) => ({
+  tooltip: {
+    trigger: 'item',
+    formatter: (params) => {
+      const rows = labels.map((label, index) => `${label}：${values[index]}`).join('<br/>')
+      return `${params.name}<br/>${rows}`
+    }
+  },
+  radar: {
+    indicator: labels.map(label => ({ name: label, max: 100 })),
+    shape: 'circle',
+    center: ['50%', '50%'],
+    radius: '65%',
+    axisName: {
+      color: '#4a5568',
+      fontSize: 12
     },
-    radar: {
-      indicator: [
-        { name: '互联网', max: 100 },
-        { name: '金融', max: 100 },
-        { name: '专业服务', max: 100 },
-        { name: '制造业', max: 100 },
-        { name: '教育', max: 100 },
-        { name: '医疗', max: 100 },
-        { name: '其他', max: 100 }
-      ],
-      shape: 'circle',
-      center: ['50%', '50%'],
-      radius: '65%',
-      axisName: {
-        color: '#4a5568',
-        fontSize: 12
-      },
-      splitArea: {
-        areaStyle: {
-          color: ['rgba(66, 186, 150, 0.02)', 'rgba(66, 186, 150, 0.05)']
-        }
-      },
-      axisLine: {
-        lineStyle: {
-          color: 'rgba(66, 186, 150, 0.15)'
-        }
+    splitArea: {
+      areaStyle: {
+        color: [`${color}08`, `${color}14`]
       }
     },
-    series: [{
-      type: 'radar',
-      data: [{
-        value: [50, 40, 60, 50, 30, 40, 50],
-        name: '行业匹配',
-        areaStyle: {
-          color: 'rgba(66, 186, 150, 0.2)'
-        },
-        lineStyle: {
-          color: '#42BA96',
-          width: 2
-        },
-        itemStyle: {
-          color: '#42BA96'
-        }
-      }]
+    axisLine: {
+      lineStyle: {
+        color: `${color}33`
+      }
+    }
+  },
+  series: [{
+    type: 'radar',
+    data: [{
+      value: values,
+      name,
+      areaStyle: {
+        color: `${color}33`
+      },
+      lineStyle: {
+        color,
+        width: 2
+      },
+      itemStyle: {
+        color
+      }
     }]
-  }
+  }]
+})
 
-  const industryChart2Data = industryData.length > 0
-    ? industryData.map(item => ({
-        name: item.tag_name,
-        value: Math.round(item.tag_weight * 100) / 100
-      }))
-    : []
+const weightedTagData = (items = []) => {
+  const validItems = items
+    .map(item => ({
+      name: item.tag_name,
+      rawValue: toFiniteNumber(item.tag_weight)
+    }))
+    .filter(item => item.name && item.rawValue > 0)
+  const maxWeight = Math.max(...validItems.map(item => item.rawValue), 0)
 
-  industryChart2Option.value = {
+  return validItems.map(item => ({
+    name: item.name,
+    value: maxWeight ? clampScore((item.rawValue / maxWeight) * 100) : 0,
+    rawValue: Math.round(item.rawValue * 100) / 100
+  }))
+}
+
+const firstLevelIndustryData = (industryData = []) => {
+  const grouped = {}
+  industryData.forEach(item => {
+    const name = item.tag_name || ''
+    if (!name) return
+    const firstLevel = name.split('-')[0] || name
+    grouped[firstLevel] = (grouped[firstLevel] || 0) + toFiniteNumber(item.tag_weight)
+  })
+
+  return Object.entries(grouped)
+    .map(([name, rawValue]) => ({ tag_name: name, tag_weight: rawValue }))
+    .sort((a, b) => b.tag_weight - a.tag_weight)
+    .slice(0, 6)
+}
+
+const pieOption = (seriesName, data, emptyText) => {
+  if (!data.length) return noDataChartOption(emptyText)
+
+  return {
     tooltip: {
-      trigger: 'item'
+      trigger: 'item',
+      formatter: '{b}<br/>SDK权重：{c}<br/>占比：{d}%'
     },
     legend: {
+      type: 'scroll',
       top: '5%',
       left: 'center'
     },
     series: [{
-      name: '二级行业',
+      name: seriesName,
       type: 'pie',
       radius: '60%',
-      center: ['50%', '55%'],
+      center: ['50%', '58%'],
       itemStyle: {
         borderRadius: 0,
         borderColor: '#fff',
@@ -1197,42 +1340,43 @@ const updateChartOptions = (evalData, industryData = [], posTypeData = []) => {
         show: true,
         formatter: '{b}: {d}%'
       },
-      data: industryChart2Data
+      data
     }]
   }
+}
 
-  const posTypeChartData = posTypeData.length > 0
-    ? posTypeData.map(item => ({
-        name: item.tag_name,
-        value: Math.round(item.tag_weight * 100) / 100
-      }))
-    : []
+const updateChartOptions = (evalData, industryData = [], posTypeData = [], result = {}, tagsData = {}, certificates = []) => {
+  const capacityLabels = ['教育背景', '工作能力', '管理能力', '社会能力', '语言能力', '荣誉指数']
+  const capacityValues = buildCapacityValues(evalData, result, tagsData, certificates)
+  capacityChartOption.value = radarOption(capacityLabels, capacityValues, '能力指数', '#335EEA')
 
-  positionTypeChartOption.value = {
-    tooltip: {
-      trigger: 'item'
-    },
-    legend: {
-      top: '5%',
-      left: 'center'
-    },
-    series: [{
-      name: '职位职能',
-      type: 'pie',
-      radius: '60%',
-      center: ['50%', '55%'],
-      itemStyle: {
-        borderRadius: 0,
-        borderColor: '#fff',
-        borderWidth: 2
-      },
-      label: {
-        show: true,
-        formatter: '{b}: {d}%'
-      },
-      data: posTypeChartData
-    }]
-  }
+  const industryRadarData = weightedTagData(firstLevelIndustryData(industryData))
+  industryChartOption.value = industryRadarData.length
+    ? radarOption(
+        industryRadarData.map(item => item.name),
+        industryRadarData.map(item => item.value),
+        '行业匹配',
+        '#42BA96'
+      )
+    : noDataChartOption('SDK 未返回行业标签')
+
+  const industryChart2Data = (industryData || [])
+    .filter(item => item.tag_name && toFiniteNumber(item.tag_weight) > 0)
+    .map(item => ({
+      name: item.tag_name,
+      value: Math.round(toFiniteNumber(item.tag_weight) * 100) / 100
+    }))
+
+  industryChart2Option.value = pieOption('二级行业', industryChart2Data, 'SDK 未返回二级行业')
+
+  const posTypeChartData = (posTypeData || [])
+    .filter(item => item.tag_name && toFiniteNumber(item.tag_weight) > 0)
+    .map(item => ({
+      name: item.tag_name,
+      value: Math.round(toFiniteNumber(item.tag_weight) * 100) / 100
+    }))
+
+  positionTypeChartOption.value = pieOption('职位职能', posTypeChartData, 'SDK 未返回职位职能')
 }
 
 const initCharts = () => {
@@ -1282,6 +1426,7 @@ const reset = () => {
   parserData.value = {}
   profilerData.value = {}
   avatarUrl.value = ''
+  termExplanationMap.value = {}
   activeTab.value = 'parser'
   error.value = ''
 }
@@ -2198,6 +2343,23 @@ const reset = () => {
 .description-text {
   white-space: normal;
   line-height: 1.7;
+}
+
+.term-clickable {
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.term-clickable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(51, 94, 234, 0.2);
+}
+
+.skill-term.mybadge-info {
+  background: rgba(124, 105, 239, 0.12);
+  color: #5a4abd;
+  border: 1px solid rgba(124, 105, 239, 0.25);
 }
 
 .chart-container {

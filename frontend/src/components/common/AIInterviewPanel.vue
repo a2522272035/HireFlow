@@ -109,7 +109,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, computed } from 'vue'
+import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 
 const API_BASE = '/api/v1/ai'
 
@@ -139,6 +139,28 @@ const messages = ref([])
 const chatContainer = ref(null)
 const chatHistory = ref([])
 const renderKey = ref(0)
+
+function handleExternalAsk(e) {
+  const message = e.detail?.message || ''
+  if (!message) return
+
+  inputText.value = message
+  nextTick(() => {
+    const input = document.querySelector('.chat-input input')
+    if (input) input.focus()
+    if (e.detail?.autoSend) {
+      sendMessage(message)
+    }
+  })
+}
+
+onMounted(() => {
+  window.addEventListener('ai-ask-message', handleExternalAsk)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('ai-ask-message', handleExternalAsk)
+})
 
 function scrollToBottom() {
   nextTick(() => {
@@ -206,10 +228,11 @@ async function reAnalyze() {
   scrollToBottom()
 }
 
-async function sendMessage() {
-  if (!inputText.value.trim() || isLoading.value) return
+async function sendMessage(forcedText = '') {
+  const externalText = typeof forcedText === 'string' ? forcedText : ''
+  const userMsg = (externalText || inputText.value).trim()
+  if (!userMsg || isLoading.value) return
 
-  const userMsg = inputText.value.trim()
   inputText.value = ''
 
   messages.value.push({

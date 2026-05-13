@@ -26,6 +26,11 @@ class GenerateQuestionsRequest(BaseModel):
     resume_data: dict[str, Any]
 
 
+class ExplainTermRequest(BaseModel):
+    term: str
+    context: str | None = None
+
+
 router = APIRouter()
 
 
@@ -37,6 +42,16 @@ async def analyze_resume(req: AnalyzeRequest) -> dict:
     service = AIService()
     result = await service.analyze_resume(req.resume_data, req.profiler_data)
     return {"success": True, "data": result}
+
+
+@router.post("/explain-term")
+async def explain_term(req: ExplainTermRequest) -> dict:
+    """Explain a professional term from the resume."""
+    from app.services.ai_service import AIService
+
+    service = AIService()
+    result = await service.explain_term(req.term, req.context)
+    return {"success": True, "data": {"term": req.term, "explanation": result["explanation"], "source": result["source"]}}
 
 
 @router.post("/generate-questions")

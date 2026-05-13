@@ -293,3 +293,42 @@ class AIService:
         messages.append({"role": "user", "content": user_message})
         async for chunk in self.llm.chat_stream(messages):
             yield chunk
+
+    async def explain_term(
+        self,
+        term: str,
+        context: str | None = None,
+    ) -> dict:
+        """
+        解释专业名词。优先查本地知识库，找不到则调 AI 并异步写入动态库。
+
+        Returns:
+            {"explanation": str, "source": "local" | "ai"}
+        """
+        from app.services.company_glossary import (
+            get_term_explanation,
+            async_add_term,
+        )
+
+        # 先查本地知识库（预定义 + 动态）
+        local = get_term_explanation(term)
+        if local:
+            return {"explanation": local, "source": "local"}
+
+        # 本地没有，调 AI
+        prompt = f"请用简洁易懂的语言解释专业名词「{term}」"
+        if context:
+            prompt += f"，该词出现在简历中的上下文中：{context}"
+        prompt += "。\n要求：\n1. 解释含义（1-2句话）\n2. 说明在工作中的实际应用场景\n3. 控制在100字以内"
+
+        messages = [
+            {"role": "system", "content": "你是一位专业的人力资源顾问，擅长用通俗易懂的方式解释简历中的专业术语。"},
+            {"role": "user", "content": prompt},
+        ]
+        ai_result = await self.llm.chat(messages, temperature=0.3)
+
+        # 异步写入动态知识库，不阻塞返回
+        if ai_result:
+            async_add_term(term, ai_result)
+
+        return {"explanation": ai_result, "source": "ai"}
