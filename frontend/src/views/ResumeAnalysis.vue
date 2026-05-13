@@ -278,9 +278,6 @@
                 <div v-if="parserData.skills && parserData.skills.length > 0">
                   <span v-for="(skill, index) in parserData.skills" :key="index"
                         class="mybadge mybadge-info mybadge-pill me-2 mb-2 term-clickable skill-term"
-                        tabindex="0"
-                        @mouseenter="explainTerm(skill, $event)"
-                        @focus="explainTerm(skill, $event)"
                         @click="explainTerm(skill, $event)">
                     {{ skill }}
                   </span>
@@ -353,7 +350,9 @@
                         :data-original-title="item.tooltip"
                         tabindex="0"
                         @mouseenter="explainTerm(item.text, $event)"
+                        @mouseleave="handleTermLeave"
                         @focus="explainTerm(item.text, $event)"
+                        @blur="handleTermLeave"
                         @click="explainTerm(item.text, $event)"
                       >{{ item.text }}</span>
                     </div>
@@ -457,6 +456,12 @@ const termTooltipRef = ref(null)
 function explainTerm(term, event) {
   if (termTooltipRef.value) {
     termTooltipRef.value.show(term, event)
+  }
+}
+
+function handleTermLeave() {
+  if (termTooltipRef.value) {
+    termTooltipRef.value.scheduleClose()
   }
 }
 

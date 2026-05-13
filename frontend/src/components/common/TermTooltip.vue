@@ -68,9 +68,9 @@ async function show(termText, event) {
   const target = event.currentTarget || event.target
   const rect = target.getBoundingClientRect()
   const tooltipW = 320
-  const tooltipH = 180
+  const tooltipH = 200
   let x = rect.left + rect.width / 2 - tooltipW / 2
-  let y = rect.bottom + 8
+  let y = rect.bottom + 10
 
   if (x < 8) x = 8
   if (x + tooltipW > window.innerWidth) x = window.innerWidth - tooltipW - 8
@@ -117,25 +117,24 @@ async function show(termText, event) {
           let data = line.slice(6)
           if (!data) continue
 
-          // 检测本地命中标志
           if (!isLocal && data.startsWith('__local__')) {
             isLocal = true
             data = data.slice(9)
-            sourceLabel.value = '📖 知识库'
+            sourceLabel.value = ' 知识库'
           }
 
           fullText += data
           explanation.value = fullText
           if (!isLocal && !sourceLabel.value) {
-            sourceLabel.value = '🤖 AI 生成中...'
+            sourceLabel.value = ' AI 生成中...'
           }
+          await new Promise(r => setTimeout(r, 30))
         }
       }
     }
 
-    // 流式结束后设置最终状态
     if (currentSeq !== requestSeq) return
-    if (!isLocal && sourceLabel.value === '🤖 AI 生成中...') {
+    if (!isLocal && sourceLabel.value === ' AI 生成中...') {
       sourceLabel.value = ' AI 生成'
     }
     explanationCache.set(cacheKey, {
