@@ -294,16 +294,16 @@ class AIService:
         async for chunk in self.llm.chat_stream(messages):
             yield chunk
 
-    async def explain_term(
+    async def explain_term_stream(
         self,
         term: str,
         context: str | None = None,
-    ) -> dict:
+    ) -> AsyncGenerator[str, None]:
         """
-        解释专业名词。优先查本地知识库，找不到则调 AI 并异步写入动态库。
+        解释专业名词（流式输出）。优先查本地知识库，找不到则流式调 AI 并异步写入动态库。
 
-        Returns:
-            {"explanation": str, "source": "local" | "ai"}
+        Yields:
+            str: 文本片段
         """
         from app.services.company_glossary import (
             get_term_explanation,
@@ -313,9 +313,11 @@ class AIService:
         # 先查本地知识库（预定义 + 动态）
         local = get_term_explanation(term)
         if local:
-            return {"explanation": local, "source": "local"}
+            # 本地命中，非流式直接返回完整内容
+            yield f"__local__{local}"
+            return
 
-        # 本地没有，调 AI
+        # 本地没有，流式调 AI
         prompt = f"请用简洁易懂的语言解释专业名词「{term}」"
         if context:
             prompt += f"，该词出现在简历中的上下文中：{context}"
@@ -325,10 +327,12 @@ class AIService:
             {"role": "system", "content": "你是一位专业的人力资源顾问，擅长用通俗易懂的方式解释简历中的专业术语。"},
             {"role": "user", "content": prompt},
         ]
-        ai_result = await self.llm.chat(messages, temperature=0.3)
 
-        # 异步写入动态知识库，不阻塞返回
-        if ai_result:
-            async_add_term(term, ai_result)
+        full_text = ""
+        async for chunk in self.llm.chat_stream(messages, temperature=0.3):
+            full_text += chunk
+            yield chunk
 
-        return {"explanation": ai_result, "source": "ai"}
+        # 异步写入动态知识库，不阻塞
+        if full_text:
+            async_add_term(term, full_text)

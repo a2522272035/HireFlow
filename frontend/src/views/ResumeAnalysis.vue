@@ -664,7 +664,6 @@ const transformData = (parsedData, avatarData) => {
   const skillsList = result.skills_objs || result.skills || []
   const certificatesList = result.all_cert_objs || result.certificate_objs || []
   const projects = result.project_objs || []
-  termExplanationMap.value = buildTermExplanationMap(result, tagsData, certificatesList)
 
   const mergeSkills = (rawSkills) => {
     if (!Array.isArray(rawSkills) || rawSkills.length === 0) return '未提供'
@@ -1426,7 +1425,6 @@ const reset = () => {
   parserData.value = {}
   profilerData.value = {}
   avatarUrl.value = ''
-  termExplanationMap.value = {}
   activeTab.value = 'parser'
   error.value = ''
 }

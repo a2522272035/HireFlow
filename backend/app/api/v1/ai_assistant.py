@@ -45,13 +45,25 @@ async def analyze_resume(req: AnalyzeRequest) -> dict:
 
 
 @router.post("/explain-term")
-async def explain_term(req: ExplainTermRequest) -> dict:
-    """Explain a professional term from the resume."""
+async def explain_term(req: ExplainTermRequest):
+    """Explain a professional term from the resume with streaming."""
     from app.services.ai_service import AIService
 
     service = AIService()
-    result = await service.explain_term(req.term, req.context)
-    return {"success": True, "data": {"term": req.term, "explanation": result["explanation"], "source": result["source"]}}
+
+    async def event_generator():
+        async for chunk in service.explain_term_stream(req.term, req.context):
+            yield f"data: {chunk}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
 
 
 @router.post("/generate-questions")

@@ -92,16 +92,56 @@ async function show(termText, event) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ term: termText })
     })
-    const json = await res.json()
+
     if (currentSeq !== requestSeq) return
-    if (json.success && json.data?.explanation) {
-      explanation.value = json.data.explanation
-      sourceLabel.value = json.data.source === 'local' ? '📖 知识库' : '🤖 AI 生成'
-      explanationCache.set(cacheKey, {
-        explanation: json.data.explanation,
-        sourceLabel: sourceLabel.value
-      })
+
+    if (!res.ok || !res.body) {
+      if (currentSeq === requestSeq) loading.value = false
+      return
     }
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let fullText = ''
+    let isLocal = false
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (currentSeq !== requestSeq) break
+
+      const chunk = decoder.decode(value, { stream: true })
+      const lines = chunk.split('\n')
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          let data = line.slice(6)
+          if (!data) continue
+
+          // 检测本地命中标志
+          if (!isLocal && data.startsWith('__local__')) {
+            isLocal = true
+            data = data.slice(9)
+            sourceLabel.value = '📖 知识库'
+          }
+
+          fullText += data
+          explanation.value = fullText
+          if (!isLocal && !sourceLabel.value) {
+            sourceLabel.value = '🤖 AI 生成中...'
+          }
+        }
+      }
+    }
+
+    // 流式结束后设置最终状态
+    if (currentSeq !== requestSeq) return
+    if (!isLocal && sourceLabel.value === '🤖 AI 生成中...') {
+      sourceLabel.value = ' AI 生成'
+    }
+    explanationCache.set(cacheKey, {
+      explanation: fullText,
+      sourceLabel: sourceLabel.value
+    })
   } catch (e) {
     if (currentSeq === requestSeq) {
       explanation.value = ''
