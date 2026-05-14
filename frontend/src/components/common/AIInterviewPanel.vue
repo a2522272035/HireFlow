@@ -380,6 +380,20 @@ const closePanel = () => {
   emit('close')
 }
 
+function resetPanel() {
+  messages.value = []
+  chatHistory.value = []
+  matchScore.value = 0
+  coreAdvantages.value = []
+  potentialRisks.value = []
+  followUpDirections.value = []
+  showAnalysis.value = true
+  analyzed = false
+  inputText.value = ''
+}
+
+defineExpose({ resetPanel })
+
 let analyzed = false
 watch(
   () => props.resumeData?.name,

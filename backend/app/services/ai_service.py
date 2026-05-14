@@ -318,13 +318,11 @@ class AIService:
             return
 
         # 本地没有，流式调 AI（仅解释名词含义）
-        prompt = f"请用简洁易懂的语言解释专业名词「{term}」的含义。"
-        if context:
-            prompt += f"该词出现在简历的技能/经验中。"
-        prompt += "要求：1-2句话，控制在50字以内，通俗易懂。"
+        # 使用极简 prompt 减少首字延迟
+        prompt = f"解释「{term}」，1-2句话，50字以内。"
 
         messages = [
-            {"role": "system", "content": "你是一位专业的人力资源顾问，擅长用通俗易懂的方式解释简历中的专业术语。"},
+            {"role": "system", "content": "你是人力资源顾问，用一句话解释简历中的专业术语，简洁通俗。"},
             {"role": "user", "content": prompt},
         ]
 

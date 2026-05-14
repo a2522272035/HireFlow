@@ -28,7 +28,8 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed } from 'vue'
+import { lookupLocalTerm } from '@/constants/glossary.js'
 
 const API_BASE = '/api/v1/ai'
 
@@ -85,7 +86,7 @@ async function show(termText, event) {
 
   position.value = { left, top }
 
-  // 先查缓存
+  // 1. 先查内存缓存（之前AI解释过的）
   const cacheKey = termText
   if (explanationCache.has(cacheKey)) {
     explanation.value = explanationCache.get(cacheKey).explanation
@@ -94,7 +95,20 @@ async function show(termText, event) {
     return
   }
 
-  // 立即发起流式请求（与位置计算并行）
+  // 2. 查本地词库（零延迟，命中直接显示）
+  const localExplanation = lookupLocalTerm(termText)
+  if (localExplanation) {
+    explanation.value = localExplanation
+    sourceLabel.value = ' 知识库'
+    loading.value = false
+    explanationCache.set(cacheKey, {
+      explanation: localExplanation,
+      sourceLabel: ' 知识库'
+    })
+    return
+  }
+
+  // 3. 本地未命中，发起流式AI请求
   try {
     const res = await fetch(`${API_BASE}/explain-term`, {
       method: 'POST',
@@ -112,29 +126,26 @@ async function show(termText, event) {
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
     let fullText = ''
-    let isLocal = false
     let buffer = ''
+    let isLocal = false
 
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       if (currentSeq !== requestSeq) break
 
-      buffer += decoder.decode(value, { stream: true })
-      const chunks = buffer.split('\n\n')
-      buffer = chunks.pop() || ''
+      const chunk = decoder.decode(value, { stream: false })
+      buffer += chunk
 
-      for (const chunk of chunks) {
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
         if (currentSeq !== requestSeq) break
-        const lines = chunk.split('\n')
-        let dataParts = []
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            dataParts.push(line.slice(6))
-          }
-        }
-        if (dataParts.length === 0) continue
-        let data = dataParts.join('\n')
+        const trimmed = line.trim()
+        if (!trimmed || !trimmed.startsWith('data: ')) continue
+
+        let data = trimmed.slice(6)
         if (!data) continue
 
         if (!isLocal && data.startsWith('__local__')) {
@@ -148,7 +159,6 @@ async function show(termText, event) {
         if (!isLocal && !sourceLabel.value) {
           sourceLabel.value = ' AI 生成中...'
         }
-        await new Promise(r => setTimeout(r, 30))
       }
     }
 

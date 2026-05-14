@@ -44,11 +44,20 @@ async def analyze_resume(req: AnalyzeRequest) -> dict:
     return {"success": True, "data": result}
 
 
+@router.post("/term-lookup")
+async def term_lookup(req: ExplainTermRequest) -> dict:
+    """Only lookup term in local glossary, no AI call."""
+    from app.services.company_glossary import get_term_explanation
+    explanation = get_term_explanation(req.term)
+    return {"success": True, "data": {"explanation": explanation}}
+
+
 @router.post("/explain-term")
 async def explain_term(req: ExplainTermRequest):
     """Explain a professional term from the resume with streaming."""
     from app.services.ai_service import AIService
     import logging
+    import asyncio
     logger = logging.getLogger(__name__)
 
     service = AIService()
@@ -57,6 +66,7 @@ async def explain_term(req: ExplainTermRequest):
         try:
             async for chunk in service.explain_term_stream(req.term, req.context):
                 yield f"data: {chunk}\n\n"
+                await asyncio.sleep(0)  # Explicit flush: yield control to event loop
         except Exception as e:
             logger.error(f"explain_term error: {e}")
             yield f"data: 错误: {str(e)}\n\n"

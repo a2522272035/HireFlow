@@ -44,6 +44,9 @@
       </div>
 
       <template v-else>
+        <button class="btn-back" @click="reset">
+          <i class="bi-arrow-left me-1"></i> 解析其他简历
+        </button>
         <div class="profile-header-section mybg-primary">
           <div class="profile-main d-flex">
             <div class="avatar-section me-4">
@@ -407,6 +410,7 @@
     </div>
 
     <AIInterviewPanel
+      ref="aiPanelRef"
       v-show="showAIPanel && parsedData"
       :resume-data="resumeData"
       :profiler-data="profilerData"
@@ -449,6 +453,7 @@ const positionTypeChartOption = ref({})
 
 const avatarUrl = ref('')
 const termTooltipRef = ref(null)
+const aiPanelRef = ref(null)
 
 function explainTerm(term, event) {
   if (termTooltipRef.value) {
@@ -462,10 +467,10 @@ function handleTermLeave() {
   }
 }
 
-// 监听AI问答事件
+// 监听AI问答事件（TermTooltip → 打开面板 + 折叠分析详情 + 发送消息）
 window.addEventListener('ai-interview-ask', (e) => {
   showAIPanel.value = true
-  showAnalysis.value = false
+  // 通知 AIInterviewPanel 折叠分析详情并直接发送
   const inputEvent = new CustomEvent('ai-ask-message', { detail: e.detail })
   window.dispatchEvent(inputEvent)
 })
@@ -1430,6 +1435,10 @@ const reset = () => {
   avatarUrl.value = ''
   activeTab.value = 'parser'
   error.value = ''
+  showAIPanel.value = false
+  if (aiPanelRef.value) {
+    aiPanelRef.value.resetPanel()
+  }
 }
 </script>
 
@@ -2167,6 +2176,30 @@ const reset = () => {
     width: 100%;
     height: 100%;
   }
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 8px 18px;
+  background: #fff;
+  border: 1px solid #e8ecf2;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5a6a7e;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.btn-back:hover {
+  background: #335EEA;
+  color: #fff;
+  border-color: #335EEA;
+  box-shadow: 0 4px 12px rgba(51, 94, 234, 0.25);
 }
 
 .row-bordered {
