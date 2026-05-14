@@ -140,26 +140,17 @@ const chatContainer = ref(null)
 const chatHistory = ref([])
 const renderKey = ref(0)
 
-function handleExternalAsk(e) {
-  const message = e.detail?.message || ''
-  if (!message) return
-
-  inputText.value = message
-  nextTick(() => {
-    const input = document.querySelector('.chat-input input')
-    if (input) input.focus()
-    if (e.detail?.autoSend) {
-      sendMessage(message)
-    }
-  })
-}
-
-onMounted(() => {
-  window.addEventListener('ai-ask-message', handleExternalAsk)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('ai-ask-message', handleExternalAsk)
+// 监听来自外部（如TermTooltip）的AI提问请求
+let askTimeout = null
+window.addEventListener('ai-ask-message', (e) => {
+  if (e.detail?.message) {
+    inputText.value = e.detail.message
+    if (askTimeout) clearTimeout(askTimeout)
+    askTimeout = setTimeout(() => {
+      askTimeout = null
+      sendMessage()
+    }, 300)
+  }
 })
 
 function scrollToBottom() {

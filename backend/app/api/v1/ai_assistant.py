@@ -48,12 +48,18 @@ async def analyze_resume(req: AnalyzeRequest) -> dict:
 async def explain_term(req: ExplainTermRequest):
     """Explain a professional term from the resume with streaming."""
     from app.services.ai_service import AIService
+    import logging
+    logger = logging.getLogger(__name__)
 
     service = AIService()
 
     async def event_generator():
-        async for chunk in service.explain_term_stream(req.term, req.context):
-            yield f"data: {chunk}\n\n"
+        try:
+            async for chunk in service.explain_term_stream(req.term, req.context):
+                yield f"data: {chunk}\n\n"
+        except Exception as e:
+            logger.error(f"explain_term error: {e}")
+            yield f"data: 错误: {str(e)}\n\n"
 
     return StreamingResponse(
         event_generator(),

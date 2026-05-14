@@ -466,6 +466,7 @@ function handleTermLeave() {
 // 监听AI问答事件
 window.addEventListener('ai-interview-ask', (e) => {
   showAIPanel.value = true
+  showAnalysis.value = false
   const inputEvent = new CustomEvent('ai-ask-message', { detail: e.detail })
   window.dispatchEvent(inputEvent)
 })
