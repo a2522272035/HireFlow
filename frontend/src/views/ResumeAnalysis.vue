@@ -348,11 +348,6 @@
                         class="mybadge term-clickable"
                         :class="'mybadge-' + tagCat.badgeColor"
                         :data-original-title="item.tooltip"
-                        tabindex="0"
-                        @mouseenter="explainTerm(item.text, $event)"
-                        @mouseleave="handleTermLeave"
-                        @focus="explainTerm(item.text, $event)"
-                        @blur="handleTermLeave"
                         @click="explainTerm(item.text, $event)"
                       >{{ item.text }}</span>
                     </div>
@@ -456,12 +451,6 @@ const termTooltipRef = ref(null)
 function explainTerm(term, event) {
   if (termTooltipRef.value) {
     termTooltipRef.value.show(term, event)
-  }
-}
-
-function handleTermLeave() {
-  if (termTooltipRef.value) {
-    termTooltipRef.value.scheduleClose()
   }
 }
 
