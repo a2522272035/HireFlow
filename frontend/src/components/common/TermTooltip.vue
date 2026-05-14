@@ -104,32 +104,42 @@ async function show(termText, event) {
     const decoder = new TextDecoder()
     let fullText = ''
     let isLocal = false
+    let buffer = ''
 
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       if (currentSeq !== requestSeq) break
 
-      const chunk = decoder.decode(value, { stream: true })
-      const lines = chunk.split('\n')
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          let data = line.slice(6)
-          if (!data) continue
+      buffer += decoder.decode(value, { stream: true })
+      const chunks = buffer.split('\n\n')
+      buffer = chunks.pop() || ''
 
-          if (!isLocal && data.startsWith('__local__')) {
-            isLocal = true
-            data = data.slice(9)
-            sourceLabel.value = ' 知识库'
+      for (const chunk of chunks) {
+        if (currentSeq !== requestSeq) break
+        const lines = chunk.split('\n')
+        let dataParts = []
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            dataParts.push(line.slice(6))
           }
-
-          fullText += data
-          explanation.value = fullText
-          if (!isLocal && !sourceLabel.value) {
-            sourceLabel.value = ' AI 生成中...'
-          }
-          await new Promise(r => setTimeout(r, 30))
         }
+        if (dataParts.length === 0) continue
+        let data = dataParts.join('\n')
+        if (!data) continue
+
+        if (!isLocal && data.startsWith('__local__')) {
+          isLocal = true
+          data = data.slice(9)
+          sourceLabel.value = ' 知识库'
+        }
+
+        fullText += data
+        explanation.value = fullText
+        if (!isLocal && !sourceLabel.value) {
+          sourceLabel.value = ' AI 生成中...'
+        }
+        await new Promise(r => setTimeout(r, 30))
       }
     }
 
