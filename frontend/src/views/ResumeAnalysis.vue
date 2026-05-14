@@ -370,10 +370,10 @@
                   </div>
                 </td>
               </tr>
-              <tr>
+              <tr v-if="profilerData.hasIndustryData">
                 <td colspan="4"><h5 class="text-center mt-3">一级行业</h5></td>
               </tr>
-              <tr>
+              <tr v-if="profilerData.hasIndustryData">
                 <td colspan="4">
                   <div class="chart-container">
                     <v-chart class="radar-chart" :option="industryChartOption" autoresize />
