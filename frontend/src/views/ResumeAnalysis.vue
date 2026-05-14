@@ -452,7 +452,6 @@ const termTooltipRef = ref(null)
 
 function explainTerm(term, event) {
   if (termTooltipRef.value) {
-    termTooltipRef.value.cancelClose?.()
     termTooltipRef.value.show(term, event)
   }
 }

@@ -5,7 +5,7 @@
       class="term-card-wrapper"
       :style="cardWrapperStyle"
       @mouseenter="cancelClose"
-      @mouseleave="close"
+      @mouseleave="scheduleClose"
     >
       <div class="term-card-bridge"></div>
       <div class="term-card">
@@ -41,6 +41,7 @@ const sourceLabel = ref('')
 const explanationCache = new Map()
 let requestSeq = 0
 let closeTimer = null
+const CLOSE_DELAY = 180
 
 const cardWrapperStyle = computed(() => ({
   left: position.value.left + 'px',
@@ -73,7 +74,7 @@ async function show(termText, event) {
   const target = event.currentTarget || event.target
   const rect = target.getBoundingClientRect()
   const cardW = 300
-  const cardH = 240
+  const cardH = 220
   const gap = 4
 
   let left = rect.left + rect.width / 2 - cardW / 2
@@ -85,6 +86,7 @@ async function show(termText, event) {
 
   position.value = { left, top }
 
+  // 先查缓存
   const cacheKey = termText
   if (explanationCache.has(cacheKey)) {
     explanation.value = explanationCache.get(cacheKey).explanation
@@ -93,6 +95,7 @@ async function show(termText, event) {
     return
   }
 
+  // 流式调用 API（本地命中或 AI 生成）
   try {
     const res = await fetch(`${API_BASE}/explain-term`, {
       method: 'POST',
@@ -138,21 +141,21 @@ async function show(termText, event) {
         if (!isLocal && data.startsWith('__local__')) {
           isLocal = true
           data = data.slice(9)
-          sourceLabel.value = '📚 知识库'
+          sourceLabel.value = ' 知识库'
         }
 
         fullText += data
         explanation.value = fullText
         if (!isLocal && !sourceLabel.value) {
-          sourceLabel.value = '🤖 AI 生成中...'
+          sourceLabel.value = ' AI 生成中...'
         }
         await new Promise(r => setTimeout(r, 30))
       }
     }
 
     if (currentSeq !== requestSeq) return
-    if (!isLocal && sourceLabel.value === '🤖 AI 生成中...') {
-      sourceLabel.value = '🤖 AI 生成'
+    if (!isLocal && sourceLabel.value === ' AI 生成中...') {
+      sourceLabel.value = ' AI 生成'
     }
     explanationCache.set(cacheKey, {
       explanation: fullText,
@@ -170,6 +173,17 @@ async function show(termText, event) {
   }
 }
 
+function scheduleClose() {
+  closeTimer = setTimeout(() => {
+    close()
+  }, CLOSE_DELAY)
+}
+
+function cancelClose() {
+  clearTimeout(closeTimer)
+  closeTimer = null
+}
+
 function close() {
   clearTimeout(closeTimer)
   closeTimer = null
@@ -179,21 +193,10 @@ function close() {
   sourceLabel.value = ''
 }
 
-function cancelClose() {
-  clearTimeout(closeTimer)
-  closeTimer = null
-}
-
-function scheduleClose() {
-  closeTimer = setTimeout(() => {
-    close()
-  }, 150)
-}
-
 function askAI() {
   cancelClose()
   window.dispatchEvent(new CustomEvent('ai-interview-ask', {
-    detail: { message: `请解释一下「${term.value}」是什么意思？` }
+    detail: { message: `请针对简历中的「${term.value}」做一个名词解释，包括含义、岗位重要性和针对性提问。` }
   }))
   close()
 }
