@@ -317,17 +317,14 @@ class AIService:
             yield f"__local__{local}"
             return
 
-        # 本地没有，流式调 AI
-        prompt = f"你是一位资深面试官，请针对简历中的专业名词「{term}」进行解析：\n\n"
-        prompt += f"1. **名词解释**：用简洁的语言说明「{term}」的含义\n"
-        prompt += f"2. **岗位重要性**：说明该技能在当前候选人的岗位中是否重要，以及原因\n"
-        prompt += f"3. **针对性提问**：基于该名词，生成 1 个面试时可以追问候选人的问题\n\n"
+        # 本地没有，流式调 AI（仅解释名词含义）
+        prompt = f"请用简洁易懂的语言解释专业名词「{term}」的含义。"
         if context:
-            prompt += f"候选人相关背景：{context}\n\n"
-        prompt += "要求：回答控制在 150 字以内，语言简洁专业。"
+            prompt += f"该词出现在简历的技能/经验中。"
+        prompt += "要求：1-2句话，控制在50字以内，通俗易懂。"
 
         messages = [
-            {"role": "system", "content": "你是一位资深技术面试官，擅长用专业且易懂的方式解析候选人简历中的技能术语，并能提出有针对性的面试问题。"},
+            {"role": "system", "content": "你是一位专业的人力资源顾问，擅长用通俗易懂的方式解释简历中的专业术语。"},
             {"role": "user", "content": prompt},
         ]
 
