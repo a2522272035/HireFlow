@@ -141,15 +141,13 @@ const chatHistory = ref([])
 const renderKey = ref(0)
 
 // 监听来自外部（如TermTooltip）的AI提问请求
-let askTimeout = null
 window.addEventListener('ai-ask-message', (e) => {
   if (e.detail?.message) {
-    inputText.value = e.detail.message
-    if (askTimeout) clearTimeout(askTimeout)
-    askTimeout = setTimeout(() => {
-      askTimeout = null
-      sendMessage()
-    }, 300)
+    showAIPanel.value = true
+    showAnalysis.value = false
+    nextTick(() => {
+      sendMessage(e.detail.message)
+    })
   }
 })
 

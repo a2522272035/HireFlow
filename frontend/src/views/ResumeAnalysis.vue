@@ -1441,10 +1441,7 @@ const reset = () => {
   padding: 0;
 
   &.ai-panel-open {
-    .main-container {
-      margin-right: 560px;
-      transform: translateX(-12%);
-    }
+    // AI面板为fixed定位，不挤压主内容区域
   }
 }
 
