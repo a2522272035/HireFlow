@@ -5,7 +5,7 @@
       class="term-card-wrapper"
       :style="cardWrapperStyle"
       @mouseenter="cancelClose"
-      @mouseleave="scheduleClose"
+      @mouseleave="close"
     >
       <div class="term-card-bridge"></div>
       <div class="term-card">
@@ -41,7 +41,6 @@ const sourceLabel = ref('')
 const explanationCache = new Map()
 let requestSeq = 0
 let closeTimer = null
-const CLOSE_DELAY = 180
 
 const cardWrapperStyle = computed(() => ({
   left: position.value.left + 'px',
@@ -74,7 +73,7 @@ async function show(termText, event) {
   const target = event.currentTarget || event.target
   const rect = target.getBoundingClientRect()
   const cardW = 300
-  const cardH = 200
+  const cardH = 240
   const gap = 4
 
   let left = rect.left + rect.width / 2 - cardW / 2
@@ -171,13 +170,13 @@ async function show(termText, event) {
   }
 }
 
-function scheduleClose() {
-  closeTimer = setTimeout(() => {
-    visible.value = false
-    term.value = ''
-    explanation.value = ''
-    sourceLabel.value = ''
-  }, CLOSE_DELAY)
+function close() {
+  clearTimeout(closeTimer)
+  closeTimer = null
+  visible.value = false
+  term.value = ''
+  explanation.value = ''
+  sourceLabel.value = ''
 }
 
 function cancelClose() {
@@ -185,20 +184,23 @@ function cancelClose() {
   closeTimer = null
 }
 
+function scheduleClose() {
+  closeTimer = setTimeout(() => {
+    close()
+  }, 150)
+}
+
 function askAI() {
   cancelClose()
   window.dispatchEvent(new CustomEvent('ai-interview-ask', {
     detail: { message: `请解释一下「${term.value}」是什么意思？` }
   }))
-  visible.value = false
+  close()
 }
 
 document.addEventListener('click', (e) => {
   if (visible.value && !e.target.closest('.term-card-wrapper') && !e.target.closest('.term-clickable')) {
-    visible.value = false
-    term.value = ''
-    explanation.value = ''
-    sourceLabel.value = ''
+    close()
   }
 })
 
@@ -223,9 +225,24 @@ defineExpose({ show, cancelClose, scheduleClose })
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   width: 300px;
+  max-height: 280px;
+  overflow-y: auto;
   padding: 14px 16px;
   font-size: 13px;
   border: 1px solid #e8ecf2;
+}
+
+.term-card::-webkit-scrollbar {
+  width: 4px;
+}
+
+.term-card::-webkit-scrollbar-thumb {
+  background: #d0d7e2;
+  border-radius: 2px;
+}
+
+.term-card::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .term-header {

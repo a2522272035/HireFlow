@@ -2349,18 +2349,59 @@ const reset = () => {
 .term-clickable {
   cursor: pointer;
   position: relative;
-  transition: all 0.2s;
+  transition: all 0.25s ease;
 }
 
 .term-clickable:hover {
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(51, 94, 234, 0.2);
+  box-shadow: 0 3px 10px rgba(51, 94, 234, 0.25);
+  filter: brightness(1.1);
+}
+
+.term-clickable:active {
+  transform: translateY(0);
 }
 
 .skill-term.mybadge-info {
   background: rgba(124, 105, 239, 0.12);
   color: #5a4abd;
   border: 1px solid rgba(124, 105, 239, 0.25);
+}
+
+.skill-term.mybadge-info:hover {
+  background: rgba(124, 105, 239, 0.22);
+  color: #4a3aad;
+  border-color: rgba(124, 105, 239, 0.5);
+}
+
+.term-clickable.mybadge-primary:hover {
+  background: rgba(51, 94, 234, 0.22) !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(51, 94, 234, 0.5) !important;
+}
+
+.term-clickable.mybadge-warning:hover {
+  background: rgba(245, 158, 11, 0.22) !important;
+  color: #b45309 !important;
+  border-color: rgba(245, 158, 11, 0.5) !important;
+}
+
+.term-clickable.mybadge-success:hover {
+  background: rgba(16, 185, 129, 0.22) !important;
+  color: #047857 !important;
+  border-color: rgba(16, 185, 129, 0.5) !important;
+}
+
+.term-clickable.mybadge-danger:hover {
+  background: rgba(239, 68, 68, 0.22) !important;
+  color: #dc2626 !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+}
+
+.term-clickable.mybadge-info:hover {
+  background: rgba(14, 165, 233, 0.22) !important;
+  color: #0369a1 !important;
+  border-color: rgba(14, 165, 233, 0.5) !important;
 }
 
 .chart-container {
