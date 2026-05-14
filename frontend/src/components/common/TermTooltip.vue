@@ -2,15 +2,16 @@
   <Teleport to="body">
     <div
       v-if="visible"
-      class="term-tooltip-overlay"
-      :style="tooltipStyle"
-      @click.stop
+      class="term-card-wrapper"
+      :style="cardWrapperStyle"
+      @mouseenter="cancelClose"
+      @mouseleave="scheduleClose"
     >
-      <div class="term-tooltip-card">
+      <div class="term-card-bridge"></div>
+      <div class="term-card">
         <div class="term-header">
           <span class="term-name">{{ term }}</span>
           <span v-if="sourceLabel" class="term-source">{{ sourceLabel }}</span>
-          <button class="close-btn" @click="close">&times;</button>
         </div>
         <div v-if="loading" class="term-loading">
           <span class="dot"></span><span class="dot"></span><span class="dot"></span>
@@ -19,7 +20,7 @@
         <div v-else-if="explanation" class="term-explanation" v-html="formattedExplanation"></div>
         <div v-else class="term-error">暂无解释</div>
         <button class="ask-ai-btn" @click="askAI" :disabled="loading || !explanation">
-          <span class="ai-icon">🤖</span> 问AI
+          <span class="ai-icon">🤖</span> 继续问 AI
         </button>
       </div>
     </div>
@@ -35,14 +36,16 @@ const visible = ref(false)
 const term = ref('')
 const explanation = ref('')
 const loading = ref(false)
-const position = ref({ x: 0, y: 0 })
+const position = ref({ left: 0, top: 0 })
 const sourceLabel = ref('')
 const explanationCache = new Map()
 let requestSeq = 0
+let closeTimer = null
+const CLOSE_DELAY = 180
 
-const tooltipStyle = computed(() => ({
-  left: position.value.x + 'px',
-  top: position.value.y + 'px'
+const cardWrapperStyle = computed(() => ({
+  left: position.value.left + 'px',
+  top: position.value.top + 'px'
 }))
 
 const formattedExplanation = computed(() => {
@@ -57,6 +60,9 @@ const formattedExplanation = computed(() => {
 
 async function show(termText, event) {
   const currentSeq = ++requestSeq
+  clearTimeout(closeTimer)
+  closeTimer = null
+
   term.value = termText
   explanation.value = ''
   sourceLabel.value = ''
@@ -67,16 +73,18 @@ async function show(termText, event) {
 
   const target = event.currentTarget || event.target
   const rect = target.getBoundingClientRect()
-  const tooltipW = 320
-  const tooltipH = 200
-  let x = rect.left + rect.width / 2 - tooltipW / 2
-  let y = rect.bottom + 10
+  const cardW = 300
+  const cardH = 200
+  const gap = 4
 
-  if (x < 8) x = 8
-  if (x + tooltipW > window.innerWidth) x = window.innerWidth - tooltipW - 8
-  if (y + tooltipH > window.innerHeight) y = rect.top - tooltipH - 8
+  let left = rect.left + rect.width / 2 - cardW / 2
+  let top = rect.bottom + gap
 
-  position.value = { x, y }
+  if (left < 8) left = 8
+  if (left + cardW > window.innerWidth) left = window.innerWidth - cardW - 8
+  if (top + cardH > window.innerHeight) top = rect.top - cardH - gap
+
+  position.value = { left, top }
 
   const cacheKey = termText
   if (explanationCache.has(cacheKey)) {
@@ -131,21 +139,21 @@ async function show(termText, event) {
         if (!isLocal && data.startsWith('__local__')) {
           isLocal = true
           data = data.slice(9)
-          sourceLabel.value = ' 知识库'
+          sourceLabel.value = '📚 知识库'
         }
 
         fullText += data
         explanation.value = fullText
         if (!isLocal && !sourceLabel.value) {
-          sourceLabel.value = ' AI 生成中...'
+          sourceLabel.value = '🤖 AI 生成中...'
         }
         await new Promise(r => setTimeout(r, 30))
       }
     }
 
     if (currentSeq !== requestSeq) return
-    if (!isLocal && sourceLabel.value === ' AI 生成中...') {
-      sourceLabel.value = ' AI 生成'
+    if (!isLocal && sourceLabel.value === '🤖 AI 生成中...') {
+      sourceLabel.value = '🤖 AI 生成'
     }
     explanationCache.set(cacheKey, {
       explanation: fullText,
@@ -163,36 +171,54 @@ async function show(termText, event) {
   }
 }
 
-function close() {
-  visible.value = false
-  term.value = ''
-  explanation.value = ''
-  sourceLabel.value = ''
+function scheduleClose() {
+  closeTimer = setTimeout(() => {
+    visible.value = false
+    term.value = ''
+    explanation.value = ''
+    sourceLabel.value = ''
+  }, CLOSE_DELAY)
+}
+
+function cancelClose() {
+  clearTimeout(closeTimer)
+  closeTimer = null
 }
 
 function askAI() {
+  cancelClose()
   window.dispatchEvent(new CustomEvent('ai-interview-ask', {
     detail: { message: `请解释一下「${term.value}」是什么意思？` }
   }))
-  close()
+  visible.value = false
 }
 
 document.addEventListener('click', (e) => {
-  if (visible.value && !e.target.closest('.term-tooltip-overlay') && !e.target.closest('.term-clickable')) {
-    close()
+  if (visible.value && !e.target.closest('.term-card-wrapper') && !e.target.closest('.term-clickable')) {
+    visible.value = false
+    term.value = ''
+    explanation.value = ''
+    sourceLabel.value = ''
   }
 })
 
-defineExpose({ show, close })
+defineExpose({ show, cancelClose, scheduleClose })
 </script>
 
 <style scoped>
-.term-tooltip-overlay {
+.term-card-wrapper {
   position: fixed;
   z-index: 9999;
 }
 
-.term-tooltip-card {
+.term-card-bridge {
+  height: 16px;
+  width: 100%;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.term-card {
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
@@ -224,20 +250,6 @@ defineExpose({ show, close })
   font-size: 11px;
   font-weight: 600;
   flex-shrink: 0;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 18px;
-  color: #9aabbf;
-  cursor: pointer;
-  padding: 0 4px;
-  line-height: 1;
-}
-
-.close-btn:hover {
-  color: #5a6a7e;
 }
 
 .term-loading {
