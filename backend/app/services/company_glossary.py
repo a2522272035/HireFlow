@@ -150,22 +150,40 @@ _DYNAMIC_FILE = Path(__file__).parent / "company_glossary_dynamic.json"
 # 线程锁
 _lock = threading.Lock()
 
+# 内存缓存（进程启动时加载一次）
+_dynamic_cache: dict[str, str] | None = None
+
 
 def _load_dynamic_glossary() -> dict[str, str]:
-    """加载动态追加的术语"""
+    """加载动态追加的术语（带内存缓存）"""
+    global _dynamic_cache
+    if _dynamic_cache is not None:
+        return _dynamic_cache
+
     if _DYNAMIC_FILE.exists():
         try:
             with open(_DYNAMIC_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                _dynamic_cache = json.load(f)
+                return _dynamic_cache
         except (json.JSONDecodeError, IOError):
-            return {}
-    return {}
+            _dynamic_cache = {}
+    else:
+        _dynamic_cache = {}
+    return _dynamic_cache
+
+
+def _invalidate_cache() -> None:
+    """使缓存失效（新增术语后调用）"""
+    global _dynamic_cache
+    _dynamic_cache = None
 
 
 def _save_dynamic_glossary(data: dict[str, str]) -> None:
     """保存动态追加的术语"""
     with open(_DYNAMIC_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    # 保存后使缓存失效
+    _invalidate_cache()
 
 
 def get_term_explanation(term: str) -> str | None:

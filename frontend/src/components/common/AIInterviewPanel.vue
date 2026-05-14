@@ -143,11 +143,12 @@ const renderKey = ref(0)
 // 监听来自外部（如TermTooltip）的AI提问请求
 window.addEventListener('ai-ask-message', (e) => {
   if (e.detail?.message) {
-    showAIPanel.value = true
+    // 折叠分析详情，腾出空间
     showAnalysis.value = false
-    nextTick(() => {
+    // 延迟发送，确保面板已渲染
+    setTimeout(() => {
       sendMessage(e.detail.message)
-    })
+    }, 200)
   }
 })
 

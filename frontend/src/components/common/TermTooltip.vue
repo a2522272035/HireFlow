@@ -69,8 +69,7 @@ async function show(termText, event) {
   loading.value = true
   visible.value = true
 
-  await nextTick()
-
+  // 立即计算位置（无需等待 nextTick）
   const target = event.currentTarget || event.target
   const rect = target.getBoundingClientRect()
   const cardW = 300
@@ -95,7 +94,7 @@ async function show(termText, event) {
     return
   }
 
-  // 流式调用 API（本地命中或 AI 生成）
+  // 立即发起流式请求（与位置计算并行）
   try {
     const res = await fetch(`${API_BASE}/explain-term`, {
       method: 'POST',
