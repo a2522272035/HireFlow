@@ -8,15 +8,19 @@ const routes = [
     children: [
       {
         path: '',
-        name: 'Dashboard',
-        component: () => import('@/views/Dashboard.vue'),
-        meta: { title: '仪表盘' },
+        redirect: '/resumes',
       },
       {
         path: 'resumes',
         name: 'ResumeAnalysis',
         component: () => import('@/views/ResumeAnalysis.vue'),
         meta: { title: '简历分析' },
+      },
+      {
+        path: 'dashboard',
+        name: 'Dashboard',
+        component: () => import('@/views/Dashboard.vue'),
+        meta: { title: '仪表盘' },
       },
       {
         path: 'interviews',

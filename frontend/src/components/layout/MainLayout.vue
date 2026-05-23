@@ -1,6 +1,5 @@
 <template>
   <el-container class="main-layout">
-    <AppSidebar />
     <el-container direction="vertical">
       <AppHeader />
       <el-main class="main-content">
@@ -16,7 +15,6 @@
 
 <script setup>
 import AppHeader from './AppHeader.vue'
-import AppSidebar from './AppSidebar.vue'
 </script>
 
 <style lang="scss" scoped>
