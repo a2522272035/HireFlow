@@ -29,8 +29,8 @@
             <div class="upload-icon">
               <i class="bi-cloud-upload-fill"></i>
             </div>
-            <div class="upload-title">点击或拖拽上传简历文件</div>
-            <div class="upload-desc">支持 PDF、Word、TXT、HTML 等 40+ 种格式，最大 30MB</div>
+            <div class="upload-title">点击或拖拽上传简历文件（支持批量）</div>
+            <div class="upload-desc">支持 PDF、Word、TXT、HTML 等 40+ 种格式，最大 30MB/个，可多选</div>
             <div class="upload-formats">
               <span class="format-tag">PDF</span>
               <span class="format-tag">DOC</span>
@@ -39,15 +39,50 @@
               <span class="format-tag">HTML</span>
             </div>
           </div>
-          <input type="file" ref="fileInput" class="file-input" @change="handleFileSelect" accept=".pdf,.doc,.docx,.txt,.html,.htm,.rtf">
+          <input type="file" ref="fileInput" class="file-input" @change="handleFileSelect" accept=".pdf,.doc,.docx,.txt,.html,.htm,.rtf" multiple>
         </div>
       </div>
 
       <template v-else>
-        <button class="btn-back" @click="reset">
+        <button class="btn-back" @click="resetAll">
           <i class="bi-arrow-left me-1"></i> 解析其他简历
         </button>
-        <div class="profile-header-section mybg-primary">
+
+        <div v-if="candidates.length > 0" class="batch-layout">
+          <div class="candidates-panel">
+            <div class="panel-header">
+              <span class="panel-title"><i class="bi-people-fill me-1"></i>候选人列表</span>
+              <span class="panel-count">{{ candidates.length }}人</span>
+              <button class="btn-add-more" @click="addMoreResumes" title="追加简历">
+                <i class="bi-plus-lg"></i>
+              </button>
+            </div>
+            <div class="candidate-cards">
+              <div
+                v-for="(c, i) in candidates"
+                :key="i"
+                class="candidate-card"
+                :class="{ active: i === currentIndex }"
+                @click="switchCandidate(i)"
+              >
+                <div class="card-avatar">
+                  <img v-if="c.avatarUrl" :src="c.avatarUrl" alt="" class="card-avatar-img">
+                  <div v-else class="card-avatar-letter">{{ c.name ? c.name[0] : '?' }}</div>
+                </div>
+                <div class="card-info">
+                  <div class="card-name">{{ c.name }}</div>
+                  <div class="card-position">{{ c.position }}</div>
+                </div>
+                <div class="card-status" :class="{ active: i === currentIndex }">
+                  <i class="bi-check-circle-fill" v-if="i === currentIndex"></i>
+                  <span v-else>{{ i + 1 }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="content-with-sidebar">
+          <div class="profile-header-section mybg-primary">
           <div class="profile-main d-flex">
             <div class="avatar-section me-4">
               <img v-if="avatarUrl" :src="avatarUrl" alt="头像" class="avatar-img">
@@ -406,6 +441,8 @@
             </table>
           </div>
         </div>
+      </div>
+      </div>
       </template>
     </div>
 
@@ -455,6 +492,11 @@ const avatarUrl = ref('')
 const termTooltipRef = ref(null)
 const aiPanelRef = ref(null)
 
+const candidates = ref([])
+const currentIndex = ref(0)
+
+const isBatchMode = computed(() => candidates.value.length > 1)
+
 function explainTerm(term, event) {
   if (termTooltipRef.value) {
     termTooltipRef.value.show(term, event)
@@ -484,75 +526,182 @@ const riskBadges = computed(() => {
 })
 
 const handleFileSelect = (event) => {
-  const file = event.target.files[0]
-  if (file) parseResume(file)
+  const files = event.target.files
+  if (files && files.length > 0) {
+    parseBatch(Array.from(files))
+  }
+  event.target.value = ''
 }
 
 const handleDrop = (event) => {
   dragover.value = false
-  const file = event.dataTransfer.files[0]
-  if (file) parseResume(file)
+  const files = event.dataTransfer.files
+  if (files && files.length > 0) {
+    parseBatch(Array.from(files))
+  }
 }
 
-const parseResume = async (file) => {
+const parseBatch = async (files) => {
   const allowedTypes = ['.pdf', '.doc', '.docx', '.txt', '.html', '.htm', '.rtf']
-  const ext = '.' + file.name.split('.').pop().toLowerCase()
-  if (!allowedTypes.includes(ext)) {
-    error.value = '不支持的文件格式，请上传 PDF、Word、TXT 或 HTML 文件'
-    return
-  }
+  
+  const validFiles = files.filter(file => {
+    const ext = '.' + file.name.split('.').pop().toLowerCase()
+    if (!allowedTypes.includes(ext)) {
+      error.value = `不支持的文件格式「${file.name}」，已跳过`
+      return false
+    }
+    if (file.size > 30 * 1024 * 1024) {
+      error.value = `「${file.name}」大小超过 30MB 限制，已跳过`
+      return false
+    }
+    return true
+  })
 
-  if (file.size > 30 * 1024 * 1024) {
-    error.value = '文件大小超过 30MB 限制'
-    return
-  }
+  if (validFiles.length === 0) return
 
   loading.value = true
-  loadingText.value = '正在读取文件...'
   error.value = ''
-  
-  await nextTick()
 
-  try {
-    loadingText.value = '正在上传并解析简历...'
+  const total = validFiles.length
+  let completed = 0
+
+  for (let i = 0; i < validFiles.length; i++) {
+    const file = validFiles[i]
+    loadingText.value = `正在解析 (${completed + 1}/${total})：${file.name}`
     await nextTick()
 
-    const formData = new FormData()
-    formData.append('file', file)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
 
-    const response = await fetch(`${API_BASE_URL}/v1/resumes/upload`, {
-      method: 'POST',
-      body: formData
-    })
+      const response = await fetch(`${API_BASE_URL}/v1/resumes/upload`, {
+        method: 'POST',
+        body: formData
+      })
 
-    if (!response.ok) {
-      throw new Error(`API 请求失败: ${response.status}`)
+      if (!response.ok) {
+        throw new Error(`API 请求失败: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '解析失败')
+      }
+
+      const avatarData = result.parsed_data?.raw_result?.result?.avatar_data ||
+                         result.parsed_data?.avatar_data ||
+                         ''
+
+      const candidateData = buildCandidateData(result.parsed_data, avatarData)
+      candidates.value.push(candidateData)
+      completed++
+
+      if (candidates.value.length === 1) {
+        currentIndex.value = 0
+        applyCandidateData(candidateData)
+        parsedData.value = result.parsed_data
+        nextTick(() => initCharts())
+      }
+
+    } catch (err) {
+      error.value = `「${file.name}」解析失败：${err.message}`
+      console.error('Resume parse error:', err)
     }
+  }
 
-    const result = await response.json()
+  loading.value = false
+  if (candidates.value.length > 0 && error.value) {
+    setTimeout(() => { error.value = '' }, 5000)
+  }
+}
 
-    if (!result.success) {
-      throw new Error(result.error || '解析失败')
-    }
+const buildCandidateData = (parsedData, avatarData) => {
+  const saved = {
+    resumeData: resumeData.value,
+    parserData: parserData.value,
+    profilerData: profilerData.value,
+    capacityChartOption: capacityChartOption.value,
+    industryChartOption: industryChartOption.value,
+    industryChart2Option: industryChart2Option.value,
+    positionTypeChartOption: positionTypeChartOption.value,
+    avatarUrl: avatarUrl.value,
+  }
 
-    const avatarData = result.parsed_data?.raw_result?.result?.avatar_data ||
-                       result.parsed_data?.avatar_data ||
-                       ''
+  transformData(parsedData, avatarData)
 
-    avatarUrl.value = avatarData
+  const candidate = {
+    id: Date.now() + Math.random(),
+    name: resumeData.value.name,
+    position: resumeData.value.position,
+    avatarUrl: avatarData,
+    parsedDataObj: parsedData,
+    _resumeData: deepClone(resumeData.value),
+    _parserData: deepClone(parserData.value),
+    _profilerData: deepClone(profilerData.value),
+    _capacityChartOption: deepClone(capacityChartOption.value),
+    _industryChartOption: deepClone(industryChartOption.value),
+    _industryChart2Option: deepClone(industryChart2Option.value),
+    _positionTypeChartOption: deepClone(positionTypeChartOption.value),
+  }
 
-    transformData(result.parsed_data, avatarData)
-    parsedData.value = result.parsed_data
+  resumeData.value = saved.resumeData
+  parserData.value = saved.parserData
+  profilerData.value = saved.profilerData
+  capacityChartOption.value = saved.capacityChartOption
+  industryChartOption.value = saved.industryChartOption
+  industryChart2Option.value = saved.industryChart2Option
+  positionTypeChartOption.value = saved.positionTypeChartOption
+  avatarUrl.value = saved.avatarUrl
 
-    nextTick(() => {
-      initCharts()
-    })
+  return candidate
+}
 
-  } catch (err) {
-    error.value = err.message || '解析失败，请检查网络连接后重试'
-    console.error('Resume parse error:', err)
-  } finally {
-    loading.value = false
+const deepClone = (obj) => JSON.parse(JSON.stringify(obj))
+
+const applyCandidateData = (candidate) => {
+  resumeData.value = candidate._resumeData
+  parserData.value = candidate._parserData
+  profilerData.value = candidate._profilerData
+  capacityChartOption.value = candidate._capacityChartOption
+  industryChartOption.value = candidate._industryChartOption
+  industryChart2Option.value = candidate._industryChart2Option
+  positionTypeChartOption.value = candidate._positionTypeChartOption
+  avatarUrl.value = candidate.avatarUrl
+}
+
+const switchCandidate = (index) => {
+  if (index === currentIndex.value) return
+  currentIndex.value = index
+  activeTab.value = 'parser'
+  showAIPanel.value = false
+  const c = candidates.value[index]
+  applyCandidateData(c)
+  parsedData.value = c.parsedDataObj
+  if (aiPanelRef.value) {
+    aiPanelRef.value.resetPanel()
+  }
+  nextTick(() => initCharts())
+}
+
+const addMoreResumes = () => {
+  const input = document.querySelector('.file-input')
+  if (input) input.click()
+}
+
+const resetAll = () => {
+  parsedData.value = null
+  resumeData.value = {}
+  parserData.value = {}
+  profilerData.value = {}
+  avatarUrl.value = ''
+  activeTab.value = 'parser'
+  error.value = ''
+  showAIPanel.value = false
+  candidates.value = []
+  currentIndex.value = 0
+  if (aiPanelRef.value) {
+    aiPanelRef.value.resetPanel()
   }
 }
 
@@ -2200,6 +2349,176 @@ const reset = () => {
   color: #fff;
   border-color: #335EEA;
   box-shadow: 0 4px 12px rgba(51, 94, 234, 0.25);
+}
+
+.batch-layout {
+  display: flex;
+  gap: 0;
+}
+
+.candidates-panel {
+  width: 240px;
+  min-width: 240px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid #eef1f5;
+  overflow: hidden;
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 100%);
+  border-bottom: 1px solid #e0e7ff;
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #335EEA;
+  display: flex;
+  align-items: center;
+}
+
+.panel-count {
+  font-size: 12px;
+  background: #335EEA;
+  color: #fff;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.btn-add-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: #fff;
+  border: 1px solid #d0d5e0;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #5a6a7e;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.btn-add-more:hover {
+  background: #335EEA;
+  color: #fff;
+  border-color: #335EEA;
+}
+
+.candidate-cards {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.candidate-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 4px;
+  border: 2px solid transparent;
+}
+
+.candidate-card:hover {
+  background: #f5f7fb;
+}
+
+.candidate-card.active {
+  background: rgba(51, 94, 234, 0.06);
+  border-color: rgba(51, 94, 234, 0.25);
+}
+
+.card-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.card-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-avatar-letter {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #335EEA 0%, #1a3fa0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a2332;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-position {
+  font-size: 11px;
+  color: #8695a8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.card-status {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #8695a8;
+  background: #f0f2f5;
+  flex-shrink: 0;
+}
+
+.card-status.active {
+  background: rgba(66, 186, 150, 0.15);
+  color: #2a8e6e;
+  font-size: 16px;
+}
+
+.content-with-sidebar {
+  flex: 1;
+  min-width: 0;
+  padding-left: 20px;
 }
 
 .row-bordered {
