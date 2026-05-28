@@ -16,6 +16,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+html,
+body,
+#app {
+  width: 100%;
+  min-height: 100%;
+}
+
 h1 { font-size: 2.5rem; }
 h2 { font-size: 2rem; }
 h3 { font-size: 1.75rem; }
@@ -100,4 +107,113 @@ h6 { font-size: 1rem; font-weight: 500; margin: 0.5rem 0; }
 .slide-up-leave-to {
   opacity: 0;
   transform: translateY(20px);
+}
+
+@media (max-width: 768px) {
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.35rem; }
+  h3 { font-size: 1.2rem; }
+  h4 { font-size: 1.1rem; }
+
+  .container {
+    padding: 0 12px;
+  }
+
+  .page-container {
+    padding: 12px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .el-card__header,
+  .el-card__body {
+    padding: 16px !important;
+  }
+
+  .el-row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .el-row > [class*="el-col"] {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-bottom: 12px;
+  }
+
+  .el-row > [class*="el-col"]:last-child {
+    margin-bottom: 0;
+  }
+
+  .el-table {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .el-table__inner-wrapper,
+  .el-table__body-wrapper,
+  .el-scrollbar,
+  .el-scrollbar__wrap {
+    max-width: 100%;
+  }
+
+  .el-table .cell {
+    padding: 0 8px;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .el-dialog {
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px);
+    margin: 8vh auto 0 !important;
+  }
+
+  .el-dialog__body {
+    padding: 16px !important;
+  }
+
+  .el-form-item {
+    display: block;
+  }
+
+  .el-form-item__label {
+    width: 100% !important;
+    justify-content: flex-start;
+    margin-bottom: 6px;
+  }
+
+  .el-form-item__content {
+    margin-left: 0 !important;
+  }
+
+  .el-pagination {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .el-tabs__nav-wrap,
+  .el-tabs__nav-scroll {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .el-card__header,
+  .el-card__body {
+    padding: 14px !important;
+  }
+
+  .el-button {
+    min-height: 36px;
+  }
+
+  .el-message-box {
+    width: calc(100vw - 24px) !important;
+  }
 }

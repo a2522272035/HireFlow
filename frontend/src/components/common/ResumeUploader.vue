@@ -122,4 +122,15 @@ const uploadFile = async (file) => {
   color: #909399;
   font-size: 12px;
 }
+
+@media (max-width: 768px) {
+  .upload-area {
+    padding: 28px 14px;
+  }
+
+  .upload-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+}
 </style>

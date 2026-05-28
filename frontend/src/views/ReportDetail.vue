@@ -609,11 +609,13 @@ const rolePieOption = {
     flex-direction: column-reverse;
     align-items: center;
     text-align: center;
+    padding: 16px;
   }
 
   .info {
     margin-right: 0;
     margin-top: 16px;
+    width: 100%;
   }
 
   .name-row {
@@ -630,6 +632,20 @@ const rolePieOption = {
   .risk-row {
     flex-direction: column;
     gap: 8px;
+  }
+
+  .section-card {
+    padding: 16px;
+    overflow-wrap: anywhere;
+  }
+
+  .chart-container {
+    overflow-x: auto;
+  }
+
+  .chart-container :deep(.echarts),
+  .chart-container > div {
+    min-width: 280px;
   }
 }
 </style>

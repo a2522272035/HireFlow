@@ -23,6 +23,16 @@ SYSTEM_CHAT = """你是一位专业面试助手，协助面试官对候选人进
 你面前有候选人的简历信息。请根据面试官的提问，结合简历内容给出专业建议或补充信息。
 回答应简洁、聚焦、有条理。
 
+当面试官询问某项技术、工具、业务技能或专业能力时，默认理解为“围绕该技术生成面试追问”，不要泛泛解释概念。
+请直接结合候选人的简历经历、岗位、项目、技能，生成 3-5 个难度中等偏下的问题。
+问题必须围绕面试官提到的技术，不要跳到无关行业、无关岗位或过难的架构问题。
+每道题后附一行“考察：...”。如果简历未明确体现该技术，先说明“简历未明确体现该技术”，再给基础核验问题。
+
+时间理解要求：
+- “总工作年限/整体累计经验”只代表候选人全部工作经历累计时间，不能说成某一家公司或某个岗位的任职时间。
+- “该段岗位时长/单段任职时长”只代表对应工作经历行的任职时间。
+- 如果上下文只给出总工作年限，不要推断候选人在当前岗位或某个岗位工作了同样久。
+
 格式要求：
 - 列表项之间必须空一行（即每个 1. 2. 3. 编号项之间要有空行）
 - 段落之间也要空一行
@@ -32,6 +42,7 @@ SYSTEM_CHAT = """你是一位专业面试助手，协助面试官对候选人进
 SYSTEM_GENERATE = """你是一位专业面试官，请根据候选人简历生成 3-5 道高质量面试问题。
 问题应涵盖：专业技能、行为面（STAR 法）、候选人简历中的疑点/亮点。
 输出格式为有序列表，每道题附一行考察意图说明。
+严格区分候选人的“总工作年限”和每段经历的“该段岗位时长”，不要把总工作年限表述为某岗位任职时长。
 """
 
 
@@ -40,6 +51,98 @@ class AIService:
 
     def __init__(self) -> None:
         self.llm = DeepSeekLLM()
+
+    def _total_work_years(self, resume_data: dict[str, Any]) -> str:
+        for key in ("total_work_years", "work_year_norm", "work_year", "experience"):
+            value = resume_data.get(key)
+            if value not in (None, ""):
+                return str(value)
+        return "未知"
+
+    def _format_work_experiences(self, resume_data: dict[str, Any]) -> str:
+        work_exps = resume_data.get("work_experiences", [])
+        if not isinstance(work_exps, list) or not work_exps:
+            return "未提供"
+
+        rows: list[str] = []
+        for i, job in enumerate(work_exps, 1):
+            if not isinstance(job, dict):
+                continue
+            company = job.get("company") or job.get("job_company") or "未提供"
+            position = job.get("position") or job.get("job_position") or "未提供"
+            period = job.get("period") or job.get("job_period") or "未提供"
+            segment_duration = (
+                job.get("segment_duration")
+                or job.get("job_duration")
+                or job.get("duration")
+                or "未提供"
+            )
+            row = (
+                f"{i}. 公司: {company} | 职位: {position} | "
+                f"任职区间: {period} | 该段岗位时长: {segment_duration}"
+            )
+            if job.get("description"):
+                row += f"\n   工作内容: {job.get('description')}"
+            rows.append(row)
+
+        return "\n".join(rows) if rows else "未提供"
+
+    def _format_resume_context(self, resume_data: dict[str, Any]) -> str:
+        total_work_years = self._total_work_years(resume_data)
+        work_exps_str = self._format_work_experiences(resume_data)
+
+        edu_exps = resume_data.get("education_experiences", [])
+        edu_exps_str = ""
+        if isinstance(edu_exps, list) and edu_exps:
+            for i, edu in enumerate(edu_exps, 1):
+                if not isinstance(edu, dict):
+                    continue
+                edu_exps_str += (
+                    f"{i}. {edu.get('school', '')} | {edu.get('major', '')} | "
+                    f"{edu.get('degree', '')} | {edu.get('duration', '')}\n"
+                )
+        else:
+            edu_exps_str = "未提供"
+
+        project_exps = resume_data.get("project_experiences", [])
+        project_exps_str = ""
+        if isinstance(project_exps, list) and project_exps:
+            for i, proj in enumerate(project_exps, 1):
+                if not isinstance(proj, dict):
+                    continue
+                project_exps_str += (
+                    f"{i}. {proj.get('name', '')} | {proj.get('role', '')} | "
+                    f"{proj.get('duration', '')}"
+                )
+                if proj.get("description"):
+                    project_exps_str += f"\n   项目描述: {proj.get('description')}"
+                project_exps_str += "\n"
+        else:
+            project_exps_str = "无"
+
+        return (
+            "当前候选人完整信息:\n"
+            f"姓名: {resume_data.get('name', '未知')}, "
+            f"性别: {resume_data.get('gender', '未知')}, "
+            f"年龄: {resume_data.get('age', '未知')}岁, "
+            f"城市: {resume_data.get('location', '未知')}, "
+            f"职位: {resume_data.get('position', '未知')}, "
+            f"总工作年限: {total_work_years}年（候选人整体累计经验，不代表任一岗位时长）, "
+            f"学历: {resume_data.get('degree', '未知')}, "
+            f"学校: {resume_data.get('school', '未知')}, "
+            f"专业: {resume_data.get('major', '未提供')}, "
+            f"期望薪资: {resume_data.get('expected_salary', '未提供')}, "
+            f"目前公司: {resume_data.get('current_company', '未提供')}\n"
+            "\n教育经历:\n"
+            f"{edu_exps_str}\n"
+            "\n工作经历（每行的“该段岗位时长”只代表这一家公司/岗位，不等于总工作年限）:\n"
+            f"{work_exps_str}\n"
+            "\n项目经历:\n"
+            f"{project_exps_str}\n"
+            f"技能: {resume_data.get('skills', '未提供')}\n"
+            f"证书: {resume_data.get('certificates', '未提供')}\n"
+            f"自我评价: {resume_data.get('self_evaluation', '未提供')}"
+        )
 
     async def analyze_resume(
         self,
@@ -88,7 +191,7 @@ class AIService:
         prompt = f"""候选人简历：
 姓名: {resume_data.get('name', '未知')}
 职位: {resume_data.get('position', '未知')}
-经验: {resume_data.get('experience', '未知')}年
+总工作年限: {self._total_work_years(resume_data)}年（整体累计经验，不代表任一岗位时长）
 技能: {resume_data.get('skills', '未提供')}
 
 请生成面试问题。"""
@@ -97,7 +200,7 @@ class AIService:
             {"role": "system", "content": SYSTEM_GENERATE},
             {"role": "user", "content": prompt},
         ]
-        return await self.llm.chat(messages, temperature=0.8)
+        return await self.llm.chat(messages, temperature=0.55)
 
     async def generate_questions_stream(
         self,
@@ -113,15 +216,7 @@ class AIService:
         else:
             tags_str = '未提供'
         
-        work_exps = resume_data.get('work_experiences', [])
-        work_exps_str = ''
-        if isinstance(work_exps, list) and work_exps:
-            for i, job in enumerate(work_exps, 1):
-                work_exps_str += f"{i}. {job.get('company', '')} | {job.get('position', '')} | {job.get('duration', '')}\n"
-                if job.get('description'):
-                    work_exps_str += f"   工作内容: {job.get('description')}\n"
-        else:
-            work_exps_str = '未提供'
+        work_exps_str = self._format_work_experiences(resume_data)
         
         edu_exps = resume_data.get('education_experiences', [])
         edu_exps_str = ''
@@ -152,7 +247,7 @@ class AIService:
 
 【职业信息】
 目标职位: {resume_data.get('position', '未知')}
-工作年限: {resume_data.get('experience', '未知')}年
+总工作年限: {self._total_work_years(resume_data)}年（整体累计经验，不代表任一岗位时长）
 期望薪资: {resume_data.get('expected_salary', '未提供')}
 目前公司: {resume_data.get('current_company', '未提供')}
 
@@ -160,6 +255,7 @@ class AIService:
 {edu_exps_str}
 
 【工作经历】
+说明：每行“该段岗位时长”只代表对应公司/岗位的单段任职时长，不等于总工作年限。
 {work_exps_str}
 
 【项目经历】
@@ -194,10 +290,10 @@ class AIService:
 - 优先从候选人的工作经历和项目经历中提取问题"""
 
         messages = [
-            {"role": "system", "content": "你是一位专业面试官。请根据候选人的完整简历信息生成恰好1道高质量面试问题。问题应结合候选人的工作经验、空档期、过往工作相关、技能等等其他综合因素之一生成针对性问题，问题需要具体一些。避免学历问题"},
+            {"role": "system", "content": "你是一位专业面试官。请根据候选人的完整简历信息生成恰好1道中等偏下难度的面试问题。问题应结合候选人的工作经验、空档期、过往工作、技能等因素之一生成，问题需要具体，不要跑偏。避免学历问题。严格区分总工作年限和单段岗位时长。"},
             {"role": "user", "content": prompt},
         ]
-        async for chunk in self.llm.chat_stream(messages, temperature=0.8):
+        async for chunk in self.llm.chat_stream(messages, temperature=0.55):
             yield chunk
 
     async def chat(
@@ -210,12 +306,7 @@ class AIService:
         messages = [{"role": "system", "content": SYSTEM_CHAT}]
 
         if resume_data:
-            resume_context = (
-                f"当前候选人: {resume_data.get('name', '未知')}, "
-                f"职位: {resume_data.get('position', '未知')}, "
-                f"经验: {resume_data.get('experience', '未知')}年"
-            )
-            messages.append({"role": "system", "content": resume_context})
+            messages.append({"role": "system", "content": self._format_resume_context(resume_data)})
 
         if chat_history:
             for msg in chat_history:
@@ -234,64 +325,14 @@ class AIService:
         messages = [{"role": "system", "content": SYSTEM_CHAT}]
 
         if resume_data:
-            work_exps = resume_data.get('work_experiences', [])
-            work_exps_str = ''
-            if isinstance(work_exps, list) and work_exps:
-                for i, job in enumerate(work_exps, 1):
-                    work_exps_str += f"{i}. {job.get('company', '')} | {job.get('position', '')} | {job.get('duration', '')}"
-                    if job.get('description'):
-                        work_exps_str += f"\n   工作内容: {job.get('description')}"
-                    work_exps_str += "\n"
-            else:
-                work_exps_str = '未提供'
-            
-            edu_exps = resume_data.get('education_experiences', [])
-            edu_exps_str = ''
-            if isinstance(edu_exps, list) and edu_exps:
-                for i, edu in enumerate(edu_exps, 1):
-                    edu_exps_str += f"{i}. {edu.get('school', '')} | {edu.get('major', '')} | {edu.get('degree', '')} | {edu.get('duration', '')}\n"
-            else:
-                edu_exps_str = '未提供'
-            
-            project_exps = resume_data.get('project_experiences', [])
-            project_exps_str = ''
-            if isinstance(project_exps, list) and project_exps:
-                for i, proj in enumerate(project_exps, 1):
-                    project_exps_str += f"{i}. {proj.get('name', '')} | {proj.get('role', '')} | {proj.get('duration', '')}"
-                    if proj.get('description'):
-                        project_exps_str += f"\n   项目描述: {proj.get('description')}"
-                    project_exps_str += "\n"
-            else:
-                project_exps_str = '无'
-            
-            resume_context = (
-                f"当前候选人完整信息:\n"
-                f"姓名: {resume_data.get('name', '未知')}, "
-                f"性别: {resume_data.get('gender', '未知')}, "
-                f"年龄: {resume_data.get('age', '未知')}岁, "
-                f"城市: {resume_data.get('location', '未知')}, "
-                f"职位: {resume_data.get('position', '未知')}, "
-                f"经验: {resume_data.get('experience', '未知')}年, "
-                f"学历: {resume_data.get('degree', '未知')}, "
-                f"学校: {resume_data.get('school', '未知')}, "
-                f"专业: {resume_data.get('major', '未提供')}, "
-                f"期望薪资: {resume_data.get('expected_salary', '未提供')}, "
-                f"目前公司: {resume_data.get('current_company', '未提供')}\n"
-                f"\n教育经历:\n{edu_exps_str}\n"
-                f"工作经历:\n{work_exps_str}\n"
-                f"项目经历:\n{project_exps_str}\n"
-                f"技能: {resume_data.get('skills', '未提供')}\n"
-                f"证书: {resume_data.get('certificates', '未提供')}\n"
-                f"自我评价: {resume_data.get('self_evaluation', '未提供')}"
-            )
-            messages.append({"role": "system", "content": resume_context})
+            messages.append({"role": "system", "content": self._format_resume_context(resume_data)})
 
         if chat_history:
             for msg in chat_history:
                 messages.append({"role": msg["role"], "content": msg["content"]})
 
         messages.append({"role": "user", "content": user_message})
-        async for chunk in self.llm.chat_stream(messages):
+        async for chunk in self.llm.chat_stream(messages, temperature=0.45):
             yield chunk
 
     async def explain_term_stream(

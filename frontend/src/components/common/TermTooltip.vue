@@ -73,7 +73,7 @@ async function show(termText, event) {
   // 立即计算位置（无需等待 nextTick）
   const target = event.currentTarget || event.target
   const rect = target.getBoundingClientRect()
-  const cardW = 300
+  const cardW = Math.min(300, window.innerWidth - 16)
   const cardH = 220
   const gap = 4
 
@@ -83,6 +83,7 @@ async function show(termText, event) {
   if (left < 8) left = 8
   if (left + cardW > window.innerWidth) left = window.innerWidth - cardW - 8
   if (top + cardH > window.innerHeight) top = rect.top - cardH - gap
+  if (top < 8) top = 8
 
   position.value = { left, top }
 
@@ -353,5 +354,23 @@ defineExpose({ show, cancelClose, scheduleClose })
 
 .ai-icon {
   font-size: 15px;
+}
+
+@media (max-width: 480px) {
+  .term-card {
+    width: calc(100vw - 16px);
+    max-height: 60vh;
+    padding: 12px;
+  }
+
+  .term-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .term-source {
+    margin-left: 0;
+  }
 }
 </style>

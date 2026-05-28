@@ -74,4 +74,22 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
 }
+
+@media (max-width: 768px) {
+  .question-list {
+    h1 {
+      margin-bottom: 16px;
+    }
+  }
+
+  .card-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .card-header .el-button {
+    width: 100%;
+  }
+}
 </style>

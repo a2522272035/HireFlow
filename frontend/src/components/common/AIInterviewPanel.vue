@@ -1,5 +1,5 @@
 <template>
-  <aside class="ai-panel">
+  <aside class="ai-panel" :class="{ 'mobile-mode': mobileMode }">
     <div class="ai-header">
       <div class="ai-title">
         <span class="robot-icon">🤖</span>
@@ -121,13 +121,20 @@ const props = defineProps({
   profilerData: {
     type: Object,
     default: () => ({})
+  },
+  mobileMode: {
+    type: Boolean,
+    default: false
   }
 })
 
 const emit = defineEmits(['close'])
 
+const isMobileViewport = () => props.mobileMode || (typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches)
+const getDefaultAnalysisVisible = () => !isMobileViewport()
+
 const inputText = ref('')
-const showAnalysis = ref(true)
+const showAnalysis = ref(getDefaultAnalysisVisible())
 const isLoading = ref(false)
 
 const matchScore = ref(0)
@@ -223,6 +230,7 @@ async function sendMessage(forcedText = '') {
   const userMsg = (externalText || inputText.value).trim()
   if (!userMsg || isLoading.value) return
 
+  showAnalysis.value = false
   inputText.value = ''
 
   messages.value.push({
@@ -387,7 +395,7 @@ function resetPanel() {
   coreAdvantages.value = []
   potentialRisks.value = []
   followUpDirections.value = []
-  showAnalysis.value = true
+  showAnalysis.value = getDefaultAnalysisVisible()
   analyzed = false
   inputText.value = ''
 }
@@ -771,5 +779,170 @@ watch(
 @keyframes blink {
   0%, 80%, 100% { opacity: 0; }
   40% { opacity: 1; }
+}
+
+@media (max-width: 768px) {
+  .ai-panel {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    max-width: 100vw;
+    height: 100svh;
+    height: 100dvh;
+    border-left: none;
+    padding: 10px 10px max(10px, env(safe-area-inset-bottom));
+    gap: 8px;
+    overflow: hidden;
+    overflow-x: hidden;
+  }
+
+  .ai-header {
+    flex: 0 0 auto;
+    margin-bottom: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #edf0f5;
+  }
+
+  .ai-title {
+    font-size: 16px;
+    min-width: 0;
+  }
+
+  .ai-section {
+    flex: 0 0 auto;
+    max-height: 360px;
+    max-height: min(44svh, 360px);
+    margin-bottom: 0;
+    padding-bottom: 8px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .section-header {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .section-header h3,
+  .chat-section h3 {
+    margin-bottom: 8px;
+  }
+
+  .refresh-btn {
+    flex-shrink: 0;
+    padding: 4px 0;
+  }
+
+  .score-card,
+  .analysis-card,
+  .question-card {
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 8px;
+  }
+
+  .analysis-group {
+    border-radius: 10px;
+    margin-bottom: 8px;
+  }
+
+  .analysis-group .group-header {
+    padding: 10px 12px;
+  }
+
+  .analysis-group .group-content {
+    padding: 8px;
+  }
+
+  .question-card {
+    align-items: center;
+    flex-direction: row;
+    min-width: 0;
+  }
+
+  .question-card button {
+    align-self: center;
+    padding: 8px 10px;
+  }
+
+  .question-card > div {
+    min-width: 0;
+  }
+
+  .question-card p {
+    overflow-wrap: anywhere;
+  }
+
+  .chat-section {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    padding-top: 0;
+  }
+
+  .chat-list {
+    min-height: 0;
+    padding-right: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .message,
+  .bubble-wrap {
+    min-width: 0;
+  }
+
+  .bubble-wrap {
+    max-width: calc(100vw - 76px);
+  }
+
+  .bubble {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .chat-input {
+    flex: 0 0 auto;
+    align-items: stretch;
+    min-width: 0;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #edf0f5;
+    background: #fff;
+  }
+
+  .chat-input input {
+    min-width: 0;
+    min-height: 42px;
+    font-size: 16px;
+  }
+
+  .chat-input button {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .ai-panel {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .ai-section {
+    max-height: 300px;
+    max-height: min(38svh, 300px);
+  }
+
+  .chat-input {
+    flex-direction: row;
+  }
+
+  .chat-input button {
+    width: 44px;
+  }
 }
 </style>

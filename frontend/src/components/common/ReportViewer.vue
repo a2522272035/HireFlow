@@ -657,6 +657,8 @@ function getSkillTagStyle(index) {
   }
 
   .profile-section {
+    padding: 16px;
+
     .profile-main {
       flex-direction: column;
       align-items: center;
@@ -676,9 +678,17 @@ function getSkillTagStyle(index) {
     }
   }
 
+  .section-card {
+    padding: 16px;
+    overflow-wrap: anywhere;
+  }
+
   .chart-container {
+    overflow-x: auto;
+
     .radar-chart,
     .pie-chart {
+      min-width: 280px;
       height: 250px;
     }
   }

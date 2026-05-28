@@ -224,4 +224,46 @@ onMounted(() => {
   padding: 24px;
   border-top: 1px solid #e4e7ed;
 }
+
+@media (max-width: 768px) {
+  .interview-room {
+    .interview-card {
+      min-height: auto;
+    }
+  }
+
+  .interview-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+
+    .header-actions {
+      width: 100%;
+      justify-content: space-between;
+    }
+  }
+
+  .candidate-info {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .transcript-container {
+    max-height: 260px;
+    padding: 12px;
+  }
+
+  .recording-controls {
+    padding: 16px 0 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .interview-header {
+    .header-actions {
+      align-items: stretch;
+      flex-direction: column;
+    }
+  }
+}
 </style>

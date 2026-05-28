@@ -135,4 +135,27 @@ onMounted(() => {
   margin-top: 20px;
   justify-content: flex-end;
 }
+
+@media (max-width: 768px) {
+  .candidate-list {
+    h1 {
+      margin-bottom: 16px;
+    }
+  }
+
+  .card-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .card-header .el-button {
+    width: 100%;
+  }
+
+  .pagination {
+    margin-top: 16px;
+    justify-content: center;
+  }
+}
 </style>

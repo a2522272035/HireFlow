@@ -27,4 +27,10 @@ import AppHeader from './AppHeader.vue'
   padding: 24px;
   overflow-y: auto;
 }
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 12px;
+  }
+}
 </style>

@@ -137,4 +137,28 @@ onMounted(() => {
     min-height: 300px;
   }
 }
+
+@media (max-width: 768px) {
+  .dashboard {
+    h1 {
+      margin-bottom: 16px;
+    }
+  }
+
+  .stats-row {
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    .stat-value {
+      font-size: 28px;
+    }
+  }
+
+  .content-row {
+    .el-card {
+      min-height: auto;
+    }
+  }
+}
 </style>

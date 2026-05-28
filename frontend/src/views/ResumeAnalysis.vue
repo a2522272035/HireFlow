@@ -1,5 +1,328 @@
 <template>
-  <div class="resume-analysis" :class="{ 'ai-panel-open': showAIPanel }">
+  <div class="resume-analysis" :class="{ 'ai-panel-open': showAIPanel, 'mobile-resume-page': isMobilePage }">
+    <template v-if="isMobilePage">
+      <div v-if="loading" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">{{ loadingText }}</div>
+      </div>
+
+      <input
+        type="file"
+        ref="mobileFileInput"
+        class="file-input"
+        @change="handleFileSelect"
+        accept=".pdf,.doc,.docx,.txt,.html,.htm,.rtf"
+        multiple
+      >
+
+      <main class="mobile-shell" :class="{ 'has-result': parsedData }">
+        <section v-if="error" class="mobile-alert">
+          <span>{{ error }}</span>
+          <button type="button" @click="error = ''">关闭</button>
+        </section>
+
+        <section v-if="!parsedData" class="mobile-upload-screen">
+          <div class="mobile-brand">HireFlow</div>
+          <div class="mobile-upload-card">
+            <div
+              class="mobile-upload-area"
+              :class="{ dragover: dragover }"
+              @click="openMobileFilePicker"
+              @drop.prevent="handleDrop"
+              @dragover.prevent="dragover = true"
+              @dragleave.prevent="dragover = false"
+            >
+              <i class="bi-cloud-upload-fill"></i>
+              <h1>导入简历</h1>
+              <p>支持 PDF、Word、TXT、HTML 等格式，可一次选择多份简历。</p>
+              <button type="button">选择文件</button>
+              <div class="mobile-format-row">
+                <span>PDF</span>
+                <span>DOC</span>
+                <span>DOCX</span>
+                <span>TXT</span>
+                <span>HTML</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <template v-else>
+          <header class="mobile-topbar">
+            <button type="button" class="mobile-icon-btn" @click="resetAll" aria-label="重新解析">
+              <i class="bi-arrow-left"></i>
+            </button>
+            <div class="mobile-title-block">
+              <strong>{{ resumeData.name }}</strong>
+              <span>{{ resumeData.position }}</span>
+            </div>
+            <button type="button" class="mobile-ai-btn" @click="showAIPanel = true">
+              <i class="bi-robot"></i>
+              AI
+            </button>
+          </header>
+
+          <section v-if="candidates.length > 0" class="mobile-candidates">
+            <button type="button" class="mobile-add-btn" @click="addMoreResumes">
+              <i class="bi-plus-lg"></i>
+            </button>
+            <button
+              v-for="(c, i) in candidates"
+              :key="c.id || i"
+              type="button"
+              class="mobile-candidate-chip"
+              :class="{ active: i === currentIndex }"
+              @click="switchCandidate(i)"
+            >
+              <span>{{ c.name || `候选人${i + 1}` }}</span>
+              <small>{{ c.position || '职位未知' }}</small>
+            </button>
+          </section>
+
+          <section class="mobile-profile-card">
+            <div class="mobile-avatar">
+              <img v-if="avatarUrl" :src="avatarUrl" alt="">
+              <span v-else>{{ resumeData.name ? resumeData.name[0] : '?' }}</span>
+            </div>
+            <div class="mobile-profile-main">
+              <div class="mobile-profile-name">{{ resumeData.name }}</div>
+              <div class="mobile-profile-position">{{ resumeData.position }}</div>
+              <div class="mobile-profile-meta">
+                <span>{{ resumeData.gender || '性别未知' }}</span>
+                <span>{{ resumeData.age || 0 }}岁</span>
+                <span>{{ resumeData.experience || 0 }}年经验</span>
+              </div>
+            </div>
+          </section>
+
+          <nav class="mobile-section-tabs">
+            <button
+              v-for="section in mobileSections"
+              :key="section.key"
+              type="button"
+              :class="{ active: mobileSection === section.key }"
+              @click="mobileSection = section.key"
+            >
+              <i :class="section.icon"></i>
+              <span>{{ section.label }}</span>
+            </button>
+          </nav>
+
+          <section v-show="mobileSection === 'summary'" class="mobile-page-section">
+            <div class="mobile-card">
+              <div class="mobile-card-title">候选人概览</div>
+              <div class="mobile-kv-grid">
+                <div v-for="row in mobileOverviewRows" :key="row.label" class="mobile-kv">
+                  <span>{{ row.label }}</span>
+                  <strong>{{ row.value || '暂无' }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="mobile-card">
+              <div class="mobile-card-title">
+                简历亮点
+                <span>{{ profilerData.highlights?.count || 0 }}</span>
+              </div>
+              <div v-if="profilerData.highlights?.items?.length" class="mobile-rich-list">
+                <p v-for="(item, index) in profilerData.highlights.items" :key="'mobile-highlight-' + index" v-html="item"></p>
+              </div>
+              <div v-else class="mobile-empty">暂无突出亮点</div>
+            </div>
+
+            <div class="mobile-card">
+              <div class="mobile-card-title">
+                风险信息
+                <span>{{ profilerData.risks?.count || 0 }}</span>
+              </div>
+              <div v-if="profilerData.risks?.items?.length" class="mobile-rich-list warning">
+                <p v-for="(item, index) in profilerData.risks.items" :key="'mobile-risk-' + index" v-html="item"></p>
+              </div>
+              <div v-else class="mobile-empty">未发现明显风险</div>
+            </div>
+
+            <div class="mobile-card">
+              <div class="mobile-card-title">智能评估</div>
+              <div class="mobile-rich-text" v-html="profilerData.assessment?.html || '暂无评估'"></div>
+            </div>
+          </section>
+
+          <section v-show="mobileSection === 'parser'" class="mobile-page-section">
+            <div class="mobile-card">
+              <div class="mobile-card-title">基本信息</div>
+              <div class="mobile-field-list">
+                <div v-for="row in mobileBasicRows" :key="row.label" class="mobile-field">
+                  <span>{{ row.label }}</span>
+                  <strong>{{ row.value || '暂无' }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="mobile-card">
+              <div class="mobile-card-title">联系方式</div>
+              <div class="mobile-field-list">
+                <div class="mobile-field">
+                  <span>联系电话</span>
+                  <strong>{{ parserData.contact?.phone || '暂无' }}</strong>
+                </div>
+                <div class="mobile-field">
+                  <span>电子邮箱</span>
+                  <strong>{{ parserData.contact?.email || '暂无' }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="mobile-card">
+              <div class="mobile-card-title">期望工作</div>
+              <div class="mobile-field-list">
+                <div v-for="row in mobileExpectationRows" :key="row.label" class="mobile-field">
+                  <span>{{ row.label }}</span>
+                  <strong>{{ row.value || '暂无' }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="mobile-card">
+              <div class="mobile-card-title">教育经历</div>
+              <div v-for="(edu, index) in parserData.educationList" :key="'mobile-edu-' + index" class="mobile-timeline-item">
+                <strong>{{ edu.school || '未知学校' }}</strong>
+                <span>{{ edu.major || '专业未知' }} · {{ edu.degree || '学历未知' }}</span>
+                <small>{{ edu.period || '时间未知' }}</small>
+              </div>
+            </div>
+
+            <div class="mobile-card">
+              <div class="mobile-card-title">工作经历</div>
+              <div v-for="(work, index) in parserData.workExperience" :key="'mobile-work-' + index" class="mobile-work-item">
+                <div class="mobile-work-head">
+                  <strong>{{ work.company || '未知公司' }}</strong>
+                  <span>{{ work.period || '时间未知' }}</span>
+                </div>
+                <div class="mobile-work-position">{{ work.position || '职位未知' }}</div>
+                <div v-if="work.positionType" class="mobile-work-type">{{ work.positionType }}</div>
+                <div v-if="work.description" class="mobile-desc" v-html="formatDescription(work.description)"></div>
+              </div>
+            </div>
+
+            <div class="mobile-card">
+              <div class="mobile-card-title">证书及奖项</div>
+              <div v-if="parserData.certificates?.length" class="mobile-chip-wrap">
+                <span
+                  v-for="(cert, index) in parserData.certificates"
+                  :key="'mobile-cert-' + index"
+                  class="mobile-chip term-clickable"
+                  @click="explainTerm(cert, $event)"
+                  @mouseenter="explainTerm(cert, $event)"
+                  @mouseleave="handleTermLeave"
+                >
+                  {{ cert }}
+                </span>
+              </div>
+              <div v-else class="mobile-empty">暂无证书信息</div>
+              <div v-if="parserData.certificate_text" class="mobile-desc">{{ parserData.certificate_text }}</div>
+            </div>
+
+            <div class="mobile-card">
+              <div class="mobile-card-title">技能列表</div>
+              <div v-if="parserData.skills?.length" class="mobile-chip-wrap">
+                <span
+                  v-for="(skill, index) in parserData.skills"
+                  :key="'mobile-skill-' + index"
+                  class="mobile-chip primary term-clickable"
+                  @click="explainTerm(skill, $event)"
+                  @mouseenter="explainTerm(skill, $event)"
+                  @mouseleave="handleTermLeave"
+                >
+                  {{ skill }}
+                </span>
+              </div>
+              <div v-else class="mobile-empty">暂无技能信息</div>
+            </div>
+
+            <div class="mobile-card">
+              <div class="mobile-card-title">自我评价</div>
+              <div v-if="parserData.selfEvaluation" class="mobile-desc" v-html="formatDescription(parserData.selfEvaluation)"></div>
+              <div v-else class="mobile-empty">暂无自我评价</div>
+            </div>
+          </section>
+
+          <section v-show="mobileSection === 'profiler'" class="mobile-page-section">
+            <div class="mobile-card">
+              <div class="mobile-card-title">简历标签</div>
+              <div v-if="profilerData.tags?.length" class="mobile-tag-groups">
+                <div v-for="(tagCat, tIndex) in profilerData.tags" :key="'mobile-tagcat-' + tIndex" class="mobile-tag-group">
+                  <div class="mobile-tag-title">{{ tagCat.category }}</div>
+                  <div v-for="(sub, sIndex) in tagCat.subs" :key="'mobile-sub-' + sIndex" class="mobile-tag-sub">
+                    <span class="mobile-tag-label">{{ sub.label }}</span>
+                    <div class="mobile-chip-wrap">
+                      <span
+                        v-for="(item, iIndex) in sub.items"
+                        :key="'mobile-tag-' + iIndex"
+                        class="mobile-chip term-clickable"
+                        :class="tagCat.badgeColor"
+                        @click="explainTerm(item.text, $event)"
+                        @mouseenter="explainTerm(item.text, $event)"
+                        @mouseleave="handleTermLeave"
+                      >
+                        {{ item.text }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="mobile-empty">暂无标签</div>
+            </div>
+
+            <div class="mobile-card">
+              <div class="mobile-card-title">亮点与风险</div>
+              <div class="mobile-badge-row">
+                <span v-for="(badge, index) in highlightBadges" :key="'mobile-hb-' + index" class="mobile-badge">{{ badge }}</span>
+                <span v-for="(badge, index) in riskBadges" :key="'mobile-rb-' + index" class="mobile-badge warning">{{ badge }}</span>
+                <span v-if="profilerData.salaryBadge" class="mobile-badge info">{{ profilerData.salaryBadge }}</span>
+              </div>
+              <div class="mobile-rich-text" v-html="profilerData.assessment?.html || '暂无评估'"></div>
+            </div>
+          </section>
+
+          <section v-show="mobileSection === 'charts'" class="mobile-page-section">
+            <div class="mobile-card">
+              <div class="mobile-card-title">能力指数</div>
+              <div class="mobile-chart-box">
+                <v-chart class="mobile-chart" :option="capacityChartOption" autoresize />
+              </div>
+            </div>
+
+            <div v-if="profilerData.hasIndustryData" class="mobile-card">
+              <div class="mobile-card-title">一级行业</div>
+              <div class="mobile-chart-box">
+                <v-chart class="mobile-chart" :option="industryChartOption" autoresize />
+              </div>
+            </div>
+
+            <div v-if="profilerData.hasIndustryData" class="mobile-card">
+              <div class="mobile-card-title">二级行业</div>
+              <div class="mobile-chart-box">
+                <v-chart class="mobile-chart" :option="industryChart2Option" autoresize />
+              </div>
+            </div>
+
+            <div v-if="profilerData.hasPositionTypeData" class="mobile-card">
+              <div class="mobile-card-title">职位职能</div>
+              <div class="mobile-chart-box">
+                <v-chart class="mobile-chart" :option="positionTypeChartOption" autoresize />
+              </div>
+            </div>
+          </section>
+
+          <button type="button" class="mobile-ai-fab" @click="showAIPanel = true">
+            <i class="bi-robot"></i>
+            <span>AI助手</span>
+          </button>
+        </template>
+      </main>
+    </template>
+
+    <template v-else>
     <button class="ai-panel-toggle-btn" :class="{ 'panel-open': showAIPanel }" @click="showAIPanel = !showAIPanel">
       <span class="ai-icon">🤖</span>
       <span>AI面试助手</span>
@@ -105,7 +428,7 @@
               <div class="basic-info-row d-flex flex-wrap mb-2">
                 <span class="info-item me-4 mb-1"><i class="bi-gender-ambiguous me-1"></i> {{ resumeData.gender }}</span>
                 <span class="info-item me-4 mb-1"><i class="bi-calendar me-1"></i> {{ resumeData.age }}岁</span>
-                <span class="info-item me-4 mb-1"><i class="bi-geo-alt me-1"></i> {{ resumeData.location }}</span>
+                <span class="info-item location-info me-4 mb-1"><i class="bi-geo-alt me-1"></i> {{ resumeData.location }}</span>
                 <span class="info-item me-4 mb-1"><i class="bi-briefcase me-1"></i> {{ resumeData.experience }}年经验</span>
               </div>
               <div class="contact-row d-flex flex-wrap">
@@ -217,7 +540,7 @@
                   <td class="mytext-muted" style="width: 120px;">期望月薪(上限)</td>
                   <td>{{ parserData.expectation.salaryMax || '暂无' }}</td>
                 </tr>
-                <tr>
+                <tr class="location-row">
                   <td class="mytext-muted" style="width: 120px;">期望工作地点</td>
                   <td>{{ parserData.expectation.jlocation || parserData.expectation.location || '暂无' }}</td>
                   <td class="mytext-muted" style="width: 120px;">期望工作地点(规范化)</td>
@@ -428,10 +751,10 @@
                   </div>
                 </td>
               </tr>
-              <tr>
+              <tr v-if="profilerData.hasPositionTypeData">
                 <td colspan="4"><h5 class="text-center mt-3">职位职能</h5></td>
               </tr>
-              <tr>
+              <tr v-if="profilerData.hasPositionTypeData">
                 <td colspan="4">
                   <div class="chart-container">
                     <v-chart class="pie-chart" :option="positionTypeChartOption" autoresize />
@@ -445,12 +768,14 @@
       </div>
       </template>
     </div>
+    </template>
 
     <AIInterviewPanel
       ref="aiPanelRef"
       v-show="showAIPanel && parsedData"
       :resume-data="resumeData"
       :profiler-data="profilerData"
+      :mobile-mode="isMobilePage"
       @close="showAIPanel = false"
     />
     <TermTooltip ref="termTooltipRef" />
@@ -459,6 +784,7 @@
 
 <script setup>
 import { ref, reactive, watch, nextTick, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { RadarChart, PieChart } from 'echarts/charts'
@@ -470,12 +796,15 @@ import TermTooltip from '@/components/common/TermTooltip.vue'
 use([RadarChart, PieChart, TooltipComponent, LegendComponent, CanvasRenderer])
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
+const route = useRoute()
+const isMobilePage = computed(() => route.meta.mobileResume === true)
 
 const loading = ref(false)
 const loadingText = ref('正在解析简历...')
 const error = ref('')
 const dragover = ref(false)
 const activeTab = ref('parser')
+const mobileSection = ref('summary')
 const parsedData = ref(null)
 const showAIPanel = ref(false)
 
@@ -491,11 +820,64 @@ const positionTypeChartOption = ref({})
 const avatarUrl = ref('')
 const termTooltipRef = ref(null)
 const aiPanelRef = ref(null)
+const mobileFileInput = ref(null)
 
 const candidates = ref([])
 const currentIndex = ref(0)
 
 const isBatchMode = computed(() => candidates.value.length > 1)
+
+const mobileSections = [
+  { key: 'summary', label: '总览', icon: 'bi-speedometer2' },
+  { key: 'parser', label: '解析', icon: 'bi-file-text' },
+  { key: 'profiler', label: '画像', icon: 'bi-person-badge' },
+  { key: 'charts', label: '图表', icon: 'bi-pie-chart' },
+]
+
+const mobileOverviewRows = computed(() => [
+  { label: '学校', value: resumeData.value.school },
+  { label: '学历', value: resumeData.value.degree },
+  { label: '专业', value: resumeData.value.major || parserData.value.basicInfo?.major },
+  { label: '所在地', value: resumeData.value.location },
+  { label: '联系电话', value: resumeData.value.phone },
+  { label: '期望薪资', value: resumeData.value.expected_salary || parserData.value.expectation?.salary },
+])
+
+const mobileBasicRows = computed(() => {
+  const basic = parserData.value.basicInfo || {}
+  return [
+    { label: '姓名', value: basic.name },
+    { label: '性别', value: basic.gender },
+    { label: '年龄', value: basic.age ? `${basic.age}岁` : '' },
+    { label: '工作年限', value: basic.workYears },
+    { label: '毕业时间', value: basic.graduationTime },
+    { label: '毕业学校', value: basic.school },
+    { label: '学校类型', value: basic.schoolType },
+    { label: '专业', value: basic.major },
+    { label: '学历', value: basic.degree },
+    { label: '参加工作时间', value: basic.workStartTime },
+    { label: '参加工作时间(推断)', value: basic.workStartTimeInferred },
+    { label: '当前职位', value: basic.currentPosition },
+    { label: '当前职能类型', value: basic.currentFunctionType },
+    { label: '当前单位', value: basic.currentCompany },
+  ]
+})
+
+const mobileExpectationRows = computed(() => {
+  const expectation = parserData.value.expectation || {}
+  return [
+    { label: '期望职位', value: expectation.position },
+    { label: '期望薪资', value: expectation.salary },
+    { label: '期望月薪(下限)', value: expectation.salaryMin },
+    { label: '期望月薪(上限)', value: expectation.salaryMax },
+    { label: '期望工作地点', value: expectation.jlocation || expectation.location },
+    { label: '期望工作地点(规范化)', value: expectation.jlocationNorm },
+  ]
+})
+
+const openMobileFilePicker = () => {
+  mobileFileInput.value?.click()
+}
 
 function explainTerm(term, event) {
   if (termTooltipRef.value) {
@@ -674,6 +1056,7 @@ const switchCandidate = (index) => {
   if (index === currentIndex.value) return
   currentIndex.value = index
   activeTab.value = 'parser'
+  mobileSection.value = 'summary'
   showAIPanel.value = false
   const c = candidates.value[index]
   applyCandidateData(c)
@@ -696,6 +1079,7 @@ const resetAll = () => {
   profilerData.value = {}
   avatarUrl.value = ''
   activeTab.value = 'parser'
+  mobileSection.value = 'summary'
   error.value = ''
   showAIPanel.value = false
   candidates.value = []
@@ -726,6 +1110,17 @@ const formatSdkWeight = (value) => {
   const num = toFiniteNumber(value)
   if (!num) return ''
   return num <= 1 ? `权重：${Math.round(num * 100)}%` : `权重：${Math.round(num * 100) / 100}`
+}
+
+const validTagItems = (items = []) => {
+  if (!Array.isArray(items)) return []
+  return items
+    .map(item => ({
+      ...item,
+      tag_name: String(item?.tag_name || '').trim(),
+      tag_weight: toFiniteNumber(item?.tag_weight)
+    }))
+    .filter(item => item.tag_name && item.tag_weight > 0)
 }
 
 const getTermName = (item) => {
@@ -821,6 +1216,7 @@ const transformData = (parsedData, avatarData) => {
   const skillsList = result.skills_objs || result.skills || []
   const certificatesList = result.all_cert_objs || result.certificate_objs || []
   const projects = result.project_objs || []
+  const totalWorkYears = workYearNorm || result.work_year || calculateWorkYears(result.job_exp_objs)
 
   const mergeSkills = (rawSkills) => {
     if (!Array.isArray(rawSkills) || rawSkills.length === 0) return '未提供'
@@ -874,7 +1270,10 @@ const transformData = (parsedData, avatarData) => {
     gender: result.gender || '未知',
     age: result.age || 0,
     location: result.location || result.current_location || '未知',
-    experience: result.work_year || calculateWorkYears(result.job_exp_objs),
+    experience: totalWorkYears,
+    total_work_years: totalWorkYears,
+    work_year_norm: workYearNorm || '',
+    work_year: result.work_year || '',
     school: result.college || (educationList[0] && educationList[0].school) || '未知',
     degree: result.degree || (educationList[0] && educationList[0].degree) || '未知',
     phone: maskPhone(result.phone),
@@ -888,10 +1287,12 @@ const transformData = (parsedData, avatarData) => {
     current_company: result.work_company || result.current_company || '',
     current_function_type: workPosTypeP || result.current_function_type || '',
     work_experiences: workExps.map(job => ({
-      company: job.job_company || job.company || '',
-      position: job.job_pos_name || job.position || '',
-      duration: job.job_duration || job.period || '',
-      description: job.job_desc || job.description || ''
+      company: job.job_cpy || job.job_company || job.company || '',
+      position: job.job_position || job.job_pos_name || job.position || '',
+      period: [job.start_date, job.end_date].filter(Boolean).join('~') || job.period || '',
+      segment_duration: job.job_duration || '',
+      duration: job.job_duration || '',
+      description: job.job_content || job.job_desc || job.description || ''
     })),
     education_experiences: educations.map(edu => ({
       school: edu.edu_school_name || edu.school || '',
@@ -918,7 +1319,7 @@ const transformData = (parsedData, avatarData) => {
       name: result.name || '未知',
       gender: result.gender || '未知',
       age: result.age || 0,
-      workYears: (workYearNorm || result.work_year || calculateWorkYears(result.job_exp_objs)) + '年',
+      workYears: totalWorkYears + '年',
       graduationTime: graduationTime || '未知',
       school: result.college || (educationList[0] && educationList[0].school) || '未知',
       schoolType: collegeType || '未知',
@@ -953,9 +1354,10 @@ const transformData = (parsedData, avatarData) => {
 
   profilerData.value = generateProfilerData(result, evalData, tagsData, certificates)
 
-  const industryData = tagsData.industries || []
-  const posTypeData = tagsData.pos_types || []
+  const industryData = validTagItems(tagsData.industries || [])
+  const posTypeData = validTagItems(tagsData.pos_types || [])
   profilerData.value.hasIndustryData = industryData.length > 0
+  profilerData.value.hasPositionTypeData = posTypeData.length > 0
   updateChartOptions(evalData, industryData, posTypeData, result, tagsData, certificates)
 }
 
@@ -1391,11 +1793,11 @@ const noDataChartOption = (text) => ({
   series: []
 })
 
-const radarOption = (labels, values, name, color) => ({
+const radarOption = (labels, values, name, color, valueLabel = '分值') => ({
   tooltip: {
     trigger: 'item',
     formatter: (params) => {
-      const rows = labels.map((label, index) => `${label}：${values[index]}`).join('<br/>')
+      const rows = labels.map((label, index) => `${label} ${valueLabel}：${values[index]}`).join('<br/>')
       return `${params.name}<br/>${rows}`
     }
   },
@@ -1439,12 +1841,10 @@ const radarOption = (labels, values, name, color) => ({
 })
 
 const weightedTagData = (items = []) => {
-  const validItems = items
-    .map(item => ({
-      name: item.tag_name,
-      rawValue: toFiniteNumber(item.tag_weight)
-    }))
-    .filter(item => item.name && item.rawValue > 0)
+  const validItems = validTagItems(items).map(item => ({
+    name: item.tag_name,
+    rawValue: item.tag_weight
+  }))
   const maxWeight = Math.max(...validItems.map(item => item.rawValue), 0)
 
   return validItems.map(item => ({
@@ -1456,11 +1856,9 @@ const weightedTagData = (items = []) => {
 
 const firstLevelIndustryData = (industryData = []) => {
   const grouped = {}
-  industryData.forEach(item => {
-    const name = item.tag_name || ''
-    if (!name) return
-    const firstLevel = name.split('-')[0] || name
-    grouped[firstLevel] = (grouped[firstLevel] || 0) + toFiniteNumber(item.tag_weight)
+  validTagItems(industryData).forEach(item => {
+    const firstLevel = item.tag_name.split(/[-/＞>]/)[0].trim() || item.tag_name
+    grouped[firstLevel] = (grouped[firstLevel] || 0) + item.tag_weight
   })
 
   return Object.entries(grouped)
@@ -1494,7 +1892,7 @@ const pieOption = (seriesName, data, emptyText) => {
       },
       label: {
         show: true,
-        formatter: '{b}: {d}%'
+        formatter: '{b}\n{d}%'
       },
       data
     }]
@@ -1504,7 +1902,7 @@ const pieOption = (seriesName, data, emptyText) => {
 const updateChartOptions = (evalData, industryData = [], posTypeData = [], result = {}, tagsData = {}, certificates = []) => {
   const capacityLabels = ['教育背景', '工作能力', '管理能力', '社会能力', '语言能力', '荣誉指数']
   const capacityValues = buildCapacityValues(evalData, result, tagsData, certificates)
-  capacityChartOption.value = radarOption(capacityLabels, capacityValues, '能力指数', '#335EEA')
+  capacityChartOption.value = radarOption(capacityLabels, capacityValues, '能力指数', '#335EEA', '综合分值')
 
   const industryRadarData = weightedTagData(firstLevelIndustryData(industryData))
   industryChartOption.value = industryRadarData.length
@@ -1512,24 +1910,23 @@ const updateChartOptions = (evalData, industryData = [], posTypeData = [], resul
         industryRadarData.map(item => item.name),
         industryRadarData.map(item => item.value),
         '行业匹配',
-        '#42BA96'
+        '#42BA96',
+        '归一化权重'
       )
     : noDataChartOption('SDK 未返回行业标签')
 
-  const industryChart2Data = (industryData || [])
-    .filter(item => item.tag_name && toFiniteNumber(item.tag_weight) > 0)
+  const industryChart2Data = validTagItems(industryData)
     .map(item => ({
       name: item.tag_name,
-      value: Math.round(toFiniteNumber(item.tag_weight) * 100) / 100
+      value: Math.round(item.tag_weight * 100) / 100
     }))
 
   industryChart2Option.value = pieOption('二级行业', industryChart2Data, 'SDK 未返回二级行业')
 
-  const posTypeChartData = (posTypeData || [])
-    .filter(item => item.tag_name && toFiniteNumber(item.tag_weight) > 0)
+  const posTypeChartData = validTagItems(posTypeData)
     .map(item => ({
       name: item.tag_name,
-      value: Math.round(toFiniteNumber(item.tag_weight) * 100) / 100
+      value: Math.round(item.tag_weight * 100) / 100
     }))
 
   positionTypeChartOption.value = pieOption('职位职能', posTypeChartData, 'SDK 未返回职位职能')
@@ -1583,6 +1980,7 @@ const reset = () => {
   profilerData.value = {}
   avatarUrl.value = ''
   activeTab.value = 'parser'
+  mobileSection.value = 'summary'
   error.value = ''
   showAIPanel.value = false
   if (aiPanelRef.value) {
@@ -2780,23 +3178,745 @@ const reset = () => {
   }
 }
 
+.resume-analysis.mobile-resume-page {
+  min-height: 100svh;
+  background: #eef2f7;
+  color: #182033;
+}
+
+.mobile-resume-page .file-input {
+  display: none;
+}
+
+.mobile-shell {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: 12px 12px 96px;
+  box-sizing: border-box;
+}
+
+.mobile-shell.has-result {
+  padding-top: 8px;
+}
+
+.mobile-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  color: #be123c;
+  font-size: 13px;
+}
+
+.mobile-alert span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mobile-alert button {
+  border: none;
+  background: transparent;
+  color: #be123c;
+  font-weight: 700;
+  padding: 0;
+}
+
+.mobile-brand {
+  padding: 10px 2px 18px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #2563eb;
+}
+
+.mobile-upload-screen {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-upload-card {
+  flex: 1;
+  display: flex;
+}
+
+.mobile-upload-area {
+  width: 100%;
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 18px;
+  background: #fff;
+  border: 1px solid #dbe4f0;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(24, 32, 51, 0.08);
+  box-sizing: border-box;
+}
+
+.mobile-upload-area.dragover {
+  border-color: #2563eb;
+  background: #f8fbff;
+}
+
+.mobile-upload-area i {
+  font-size: 46px;
+  color: #2563eb;
+}
+
+.mobile-upload-area h1 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.2;
+  color: #172033;
+}
+
+.mobile-upload-area p {
+  margin: 0;
+  color: #667085;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.mobile-upload-area button,
+.mobile-ai-btn,
+.mobile-add-btn,
+.mobile-icon-btn,
+.mobile-section-tabs button,
+.mobile-candidate-chip,
+.mobile-ai-fab {
+  font: inherit;
+}
+
+.mobile-upload-area button {
+  width: 100%;
+  min-height: 44px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 700;
+}
+
+.mobile-format-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mobile-format-row span {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mobile-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 58px;
+  align-items: center;
+  gap: 8px;
+  margin: -8px -12px 10px;
+  padding: 8px 12px;
+  background: rgba(238, 242, 247, 0.96);
+  border-bottom: 1px solid rgba(219, 228, 240, 0.85);
+  backdrop-filter: blur(10px);
+}
+
+.mobile-icon-btn,
+.mobile-ai-btn,
+.mobile-add-btn {
+  min-height: 38px;
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #344054;
+  font-weight: 700;
+}
+
+.mobile-title-block {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mobile-title-block strong,
+.mobile-title-block span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-title-block strong {
+  font-size: 16px;
+  color: #172033;
+}
+
+.mobile-title-block span {
+  font-size: 12px;
+  color: #667085;
+}
+
+.mobile-ai-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.mobile-candidates {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+
+.mobile-add-btn {
+  min-width: 40px;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.mobile-candidate-chip {
+  flex: 0 0 auto;
+  max-width: 158px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #344054;
+}
+
+.mobile-candidate-chip.active {
+  border-color: #2563eb;
+  background: #eef4ff;
+  color: #1d4ed8;
+}
+
+.mobile-candidate-chip span,
+.mobile-candidate-chip small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-candidate-chip span {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.mobile-candidate-chip small {
+  font-size: 11px;
+}
+
+.mobile-profile-card,
+.mobile-card {
+  background: #fff;
+  border: 1px solid #e4eaf2;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(24, 32, 51, 0.05);
+}
+
+.mobile-profile-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.mobile-avatar {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #2563eb, #16a34a);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.mobile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mobile-profile-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-profile-name {
+  font-size: 20px;
+  font-weight: 800;
+  color: #172033;
+  margin-bottom: 4px;
+}
+
+.mobile-profile-position {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-profile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.mobile-profile-meta span {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: #475467;
+  font-size: 12px;
+}
+
+.mobile-section-tabs {
+  position: sticky;
+  top: 55px;
+  z-index: 25;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 0 -2px 10px;
+  padding: 6px 2px;
+  background: rgba(238, 242, 247, 0.96);
+  backdrop-filter: blur(10px);
+}
+
+.mobile-section-tabs button {
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #475467;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mobile-section-tabs button.active {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.mobile-page-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobile-card {
+  padding: 14px;
+  overflow: hidden;
+}
+
+.mobile-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: #172033;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.mobile-card-title span {
+  min-width: 22px;
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #2563eb;
+  font-size: 12px;
+}
+
+.mobile-kv-grid,
+.mobile-field-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.mobile-kv,
+.mobile-field {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 8px 0;
+  border-bottom: 1px dashed #edf1f7;
+}
+
+.mobile-kv:last-child,
+.mobile-field:last-child {
+  border-bottom: none;
+}
+
+.mobile-kv span,
+.mobile-field span {
+  color: #667085;
+  font-size: 12px;
+}
+
+.mobile-kv strong,
+.mobile-field strong {
+  min-width: 0;
+  color: #172033;
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.mobile-rich-list,
+.mobile-rich-text,
+.mobile-desc {
+  color: #475467;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.mobile-rich-list p {
+  margin: 0 0 8px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.mobile-rich-list.warning p {
+  background: #fff8ed;
+}
+
+.mobile-empty {
+  color: #98a2b3;
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.mobile-timeline-item,
+.mobile-work-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #edf1f7;
+}
+
+.mobile-timeline-item:last-child,
+.mobile-work-item:last-child {
+  border-bottom: none;
+}
+
+.mobile-timeline-item strong,
+.mobile-work-head strong {
+  display: block;
+  color: #172033;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.mobile-timeline-item span,
+.mobile-timeline-item small,
+.mobile-work-head span,
+.mobile-work-position,
+.mobile-work-type {
+  display: block;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.mobile-work-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+
+.mobile-work-position {
+  color: #2563eb;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.mobile-work-type {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f2f4f7;
+}
+
+.mobile-chip-wrap,
+.mobile-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mobile-chip,
+.mobile-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: #475467;
+  border: 1px solid #e4eaf2;
+  font-size: 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.mobile-chip.primary,
+.mobile-chip.info {
+  background: #eef4ff;
+  color: #2563eb;
+  border-color: #c7d7fe;
+}
+
+.mobile-chip.success {
+  background: #ecfdf3;
+  color: #027a48;
+  border-color: #abefc6;
+}
+
+.mobile-chip.warning,
+.mobile-badge.warning {
+  background: #fff8ed;
+  color: #b54708;
+  border-color: #fedf89;
+}
+
+.mobile-chip.danger {
+  background: #fff1f3;
+  color: #c01048;
+  border-color: #fecdd6;
+}
+
+.mobile-badge {
+  background: #eef4ff;
+  color: #2563eb;
+}
+
+.mobile-badge.info {
+  background: #f4f3ff;
+  color: #6941c6;
+  border-color: #d9d6fe;
+}
+
+.mobile-tag-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-tag-group {
+  padding-bottom: 12px;
+  border-bottom: 1px solid #edf1f7;
+}
+
+.mobile-tag-group:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.mobile-tag-title {
+  margin-bottom: 8px;
+  color: #172033;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.mobile-tag-sub {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  margin-top: 8px;
+}
+
+.mobile-tag-label {
+  color: #667085;
+  font-size: 12px;
+  line-height: 28px;
+}
+
+.mobile-chart-box {
+  width: 100%;
+  height: 300px;
+  overflow: hidden;
+}
+
+.mobile-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.mobile-ai-fab {
+  position: fixed;
+  left: 50%;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 40;
+  width: min(456px, calc(100vw - 24px));
+  min-height: 48px;
+  border: none;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 800;
+}
+
 @media (max-width: 768px) {
+  .resume-analysis {
+    width: 100%;
+    max-width: 100vw;
+  }
+
   .main-container {
-    padding: 16px;
+    max-width: 100%;
+    width: 100%;
+    padding: 10px 8px;
+    overflow: visible;
+    box-sizing: border-box;
+  }
+
+  .ai-panel-toggle-btn {
+    top: 64px;
+    right: 12px;
+    padding: 9px 12px;
+    border-radius: 20px;
+
+    &.panel-open {
+      right: 12px;
+      display: none;
+    }
+  }
+
+  .upload-section {
+    .upload-card {
+      padding: 16px;
+    }
+
+    .upload-area {
+      padding: 32px 16px;
+
+      .upload-icon {
+        font-size: 40px;
+      }
+
+      .upload-title {
+        font-size: 16px;
+      }
+
+      .upload-formats {
+        flex-wrap: wrap;
+      }
+    }
   }
 
   .profile-header-section {
-    padding: 20px;
+    padding: 16px;
+    max-width: 100%;
+    overflow: hidden;
 
     .profile-main {
       flex-direction: column;
       align-items: center;
       text-align: center;
+      gap: 16px;
+    }
+
+    .avatar-section {
+      .avatar,
+      .avatar-img {
+        width: 72px;
+        height: 72px;
+      }
+
+      .avatar {
+        font-size: 30px;
+      }
     }
 
     .profile-info {
-      .name-position { flex-direction: column; }
-      .basic-info-row, .contact-row { justify-content: center; }
+      min-width: 0;
+
+      .name-position {
+        flex-direction: column;
+        gap: 8px;
+
+        .name {
+          font-size: 22px;
+        }
+      }
+
+      .badges-row,
+      .basic-info-row,
+      .contact-row {
+        justify-content: flex-start;
+        gap: 8px 12px;
+        max-width: 100%;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch;
+      }
     }
   }
 
@@ -2805,20 +3925,204 @@ const reset = () => {
   }
 
   .tabs-nav .tab-item {
+    flex: 0 0 auto;
     padding: 12px 18px;
     font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .tabs-nav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .tab-content {
-    padding: 16px;
+    padding: 12px;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: visible;
+    overflow-wrap: anywhere;
+  }
+
+  .info-grid {
+    .info-row {
+      align-items: flex-start;
+      gap: 8px;
+
+      .info-label {
+        min-width: 72px;
+      }
+
+      .info-value {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        flex-wrap: wrap;
+      }
+    }
   }
 
   .profile-cards {
     grid-template-columns: 1fr;
+    min-width: 0;
   }
 
   .chart-grid {
     grid-template-columns: 1fr;
+    min-width: 0;
+
+    .chart-section {
+      min-width: 0;
+      padding: 12px;
+    }
+
+    .chart-wrapper {
+      min-width: 0;
+
+      .radar-chart,
+      .pie-chart {
+        height: 260px;
+      }
+    }
+  }
+
+  .chart-container {
+    max-width: 100%;
+    height: 300px;
+    min-width: 0;
+    overflow-x: auto;
+  }
+
+  .batch-layout {
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .candidates-panel {
+    position: relative;
+    top: auto;
+    width: 100%;
+    min-width: 0;
+    max-height: 220px;
+  }
+
+  .content-with-sidebar {
+    padding-left: 0;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .tabs-section,
+  .content-section,
+  .timeline-content,
+  .card-body-custom,
+  .tag-categories,
+  .tag-category {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .skills-list,
+  .category-tags {
+    max-width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .r_content {
+    margin-left: 8px;
+  }
+
+  .r_indent2 {
+    margin-left: 16px;
+  }
+
+  .table-layout {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-wrap: normal;
+    white-space: nowrap;
+
+    tbody {
+      display: table;
+      min-width: 100%;
+      width: max-content;
+    }
+
+    tr {
+      display: table-row;
+    }
+
+    tr:last-child {
+      border-bottom: none;
+    }
+
+    td {
+      display: table-cell;
+      width: auto !important;
+      padding: 8px 12px;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+
+    td.mytext-muted {
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .description-text,
+    .empty-hint {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  .location-info,
+  .location-row {
+    display: none !important;
+  }
+
+  .tab-content table.w-100 {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .mybadge,
+  .skill-tag,
+  .term-clickable,
+  .position-tag,
+  .format-tag {
+    max-width: 100%;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    text-align: left;
+  }
+
+  .description-text,
+  .evaluation-text,
+  .r_small,
+  .r_small_70,
+  .profile-item,
+  .timeline-title,
+  .timeline-subtitle,
+  .timeline-desc {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .d-flex,
+  .profile-main,
+  .name-position,
+  .basic-info-row,
+  .contact-row {
+    min-width: 0;
   }
 }
 </style>

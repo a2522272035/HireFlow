@@ -199,4 +199,41 @@ onMounted(() => {
     flex: 1;
   }
 }
+
+@media (max-width: 768px) {
+  .policy-qa {
+    h1 {
+      margin-bottom: 16px;
+    }
+  }
+
+  .chat-card {
+    min-height: calc(100vh - 160px);
+  }
+
+  .chat-messages {
+    max-height: 52vh;
+    padding: 12px;
+  }
+
+  .message {
+    &.user,
+    &.assistant {
+      .message-content {
+        max-width: 92%;
+        overflow-wrap: anywhere;
+        text-align: left;
+      }
+    }
+  }
+
+  .chat-input {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .chat-input .el-button {
+    width: 100%;
+  }
+}
 </style>

@@ -77,4 +77,26 @@ const handleCommand = (command) => {
   font-size: 14px;
   color: #606266;
 }
+
+@media (max-width: 768px) {
+  .app-header {
+    height: 52px;
+    padding: 0 12px;
+  }
+
+  .app-title {
+    font-size: 18px;
+  }
+
+  .user-info {
+    gap: 6px;
+    padding: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .username {
+    display: none;
+  }
+}
 </style>

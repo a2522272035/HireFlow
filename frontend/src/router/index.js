@@ -2,6 +2,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
   {
+    path: '/m/resumes',
+    name: 'MobileResumeAnalysis',
+    component: () => import('@/views/ResumeAnalysis.vue'),
+    meta: { title: '手机简历分析', mobileResume: true },
+  },
+  {
     path: '/',
     name: 'Layout',
     component: () => import('@/components/layout/MainLayout.vue'),
