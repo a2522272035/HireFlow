@@ -11,7 +11,7 @@
         ref="mobileFileInput"
         class="file-input"
         @change="handleFileSelect"
-        accept=".pdf,.doc,.docx,.txt,.html,.htm,.rtf"
+        :accept="acceptedResumeFileTypes"
         multiple
       >
 
@@ -27,7 +27,6 @@
             <div
               class="mobile-upload-area"
               :class="{ dragover: dragover }"
-              @click="openMobileFilePicker"
               @drop.prevent="handleDrop"
               @dragover.prevent="dragover = true"
               @dragleave.prevent="dragover = false"
@@ -35,7 +34,10 @@
               <i class="bi-cloud-upload-fill"></i>
               <h1>导入简历</h1>
               <p>支持 PDF、Word、TXT、HTML 等格式，可一次选择多份简历。</p>
-              <button type="button">选择文件</button>
+              <div class="mobile-upload-actions">
+                <button type="button" @click.stop="openMobileFilePicker">选择文件</button>
+                <button type="button" class="secondary" @click.stop="loadDemoResume">测试模式</button>
+              </div>
               <div class="mobile-format-row">
                 <span>PDF</span>
                 <span>DOC</span>
@@ -362,7 +364,7 @@
               <span class="format-tag">HTML</span>
             </div>
           </div>
-          <input type="file" ref="fileInput" class="file-input" @change="handleFileSelect" accept=".pdf,.doc,.docx,.txt,.html,.htm,.rtf" multiple>
+          <input type="file" ref="fileInput" class="file-input" @change="handleFileSelect" :accept="acceptedResumeFileTypes" multiple>
         </div>
       </div>
 
@@ -827,6 +829,23 @@ const currentIndex = ref(0)
 
 const isBatchMode = computed(() => candidates.value.length > 1)
 
+const allowedResumeExtensions = ['.pdf', '.doc', '.docx', '.txt', '.html', '.htm', '.rtf']
+const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.bmp']
+const acceptedResumeFileTypes = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
+  'text/html',
+  '.pdf',
+  '.doc',
+  '.docx',
+  '.txt',
+  '.html',
+  '.htm',
+  '.rtf'
+].join(',')
+
 const mobileSections = [
   { key: 'summary', label: '总览', icon: 'bi-speedometer2' },
   { key: 'parser', label: '解析', icon: 'bi-file-text' },
@@ -923,17 +942,36 @@ const handleDrop = (event) => {
   }
 }
 
+const getFileExtension = (file) => {
+  const name = String(file?.name || '')
+  const dotIndex = name.lastIndexOf('.')
+  return dotIndex >= 0 ? name.slice(dotIndex).toLowerCase() : ''
+}
+
+const getResumeFileError = (file) => {
+  const ext = getFileExtension(file)
+  const fileType = String(file?.type || '').toLowerCase()
+
+  if (fileType.startsWith('image/') || imageExtensions.includes(ext)) {
+    return `「${file.name || '图片文件'}」是图片/拍照文件，当前只支持 PDF、Word、TXT、HTML、RTF 简历`
+  }
+
+  if (!allowedResumeExtensions.includes(ext)) {
+    return `不支持的文件格式「${file.name || '未知文件'}」，当前只支持 PDF、Word、TXT、HTML、RTF 简历`
+  }
+
+  if (file.size > 30 * 1024 * 1024) {
+    return `「${file.name}」大小超过 30MB 限制，已跳过`
+  }
+
+  return ''
+}
+
 const parseBatch = async (files) => {
-  const allowedTypes = ['.pdf', '.doc', '.docx', '.txt', '.html', '.htm', '.rtf']
-  
   const validFiles = files.filter(file => {
-    const ext = '.' + file.name.split('.').pop().toLowerCase()
-    if (!allowedTypes.includes(ext)) {
-      error.value = `不支持的文件格式「${file.name}」，已跳过`
-      return false
-    }
-    if (file.size > 30 * 1024 * 1024) {
-      error.value = `「${file.name}」大小超过 30MB 限制，已跳过`
+    const fileError = getResumeFileError(file)
+    if (fileError) {
+      error.value = fileError
       return false
     }
     return true
@@ -995,6 +1033,153 @@ const parseBatch = async (files) => {
   loading.value = false
   if (candidates.value.length > 0 && error.value) {
     setTimeout(() => { error.value = '' }, 5000)
+  }
+}
+
+const createDemoParsedData = () => ({
+  summary: '候选人具备基础财务核算、Excel 数据整理和税务申报协助经验，适合财务专员、会计助理等岗位的初中级面试场景。',
+  graduation_time: '2020.06',
+  college_type: '2',
+  work_start_time: '2020.07',
+  work_start_time_inferred: '否',
+  work_pos_type_p: '财务/审计/税务',
+  work_year_norm: '4',
+  expect_salary_min: '8000',
+  expect_salary_max: '10000',
+  expect_jlocation: '杭州',
+  expect_jlocation_norm: '杭州',
+  raw_result: {
+    result: {
+      name: '林晓彤',
+      gender: '女',
+      age: 28,
+      location: '杭州',
+      phone: '13812345678',
+      email: 'demo.candidate@example.com',
+      college: '浙江财经大学',
+      degree: '本科',
+      major: '会计学',
+      work_position: '财务专员',
+      work_company: '杭州云川科技有限公司',
+      work_year: '4',
+      work_year_norm: '4',
+      expect_job: '财务专员',
+      expect_salary: '8-10K',
+      resume_integrity: '86',
+      cont_my_desc: '做事细致，熟悉费用报销、往来核对、基础税务申报和 Excel 数据整理，希望继续在财务核算方向发展。',
+      skills_objs: [
+        { skills_name: 'Excel 数据透视表' },
+        { skills_name: '费用报销审核' },
+        { skills_name: '税务申报协助' },
+        { skills_name: '往来账核对' },
+        { skills_name: '金蝶 KIS' }
+      ],
+      all_cert_objs: [
+        { cert_name: '初级会计职称' },
+        { cert_name: '大学英语四级' }
+      ],
+      education_objs: [
+        {
+          start_date: '2016.09',
+          end_date: '2020.06',
+          edu_college: '浙江财经大学',
+          edu_major: '会计学',
+          edu_degree: '本科'
+        }
+      ],
+      edu_exp_objs: [
+        {
+          edu_time: '2016.09~2020.06',
+          edu_school_name: '浙江财经大学',
+          edu_major: '会计学',
+          edu_degree_name: '本科'
+        }
+      ],
+      job_exp_objs: [
+        {
+          start_date: '2022.04',
+          end_date: '至今',
+          job_duration: '2年2个月',
+          job_position: '财务专员',
+          job_pos_name: '财务专员',
+          job_cpy: '杭州云川科技有限公司',
+          job_company: '杭州云川科技有限公司',
+          job_pos_type_p: '财务/审计/税务',
+          job_content: '负责日常费用报销审核、凭证整理、往来账核对，协助完成月度税务申报资料准备，并使用 Excel 透视表整理部门费用数据。'
+        },
+        {
+          start_date: '2020.07',
+          end_date: '2022.03',
+          job_duration: '1年9个月',
+          job_position: '会计助理',
+          job_pos_name: '会计助理',
+          job_cpy: '杭州启明商贸有限公司',
+          job_company: '杭州启明商贸有限公司',
+          job_pos_type_p: '财务/审计/税务',
+          job_content: '协助处理发票登记、银行流水核对、基础账务录入和客户对账，配合会计完成月结资料归档。'
+        }
+      ],
+      project_objs: [
+        {
+          project_name: '费用报销流程台账优化',
+          project_role: '执行人员',
+          project_time: '2023.08~2023.10',
+          project_desc: '将原手工登记台账改为标准 Excel 模板，按部门、费用类型和审批状态进行分类，减少重复核对。'
+        }
+      ]
+    }
+  },
+  eval: {
+    salary: 9000,
+    education_score: 76,
+    work_score: 72,
+    management_score: 45,
+    social_score: 64,
+    language_score: 58,
+    honor_score: 65
+  },
+  tags: {
+    skills_tags: [
+      { tag_name: 'Excel', tag_weight: 0.88 },
+      { tag_name: '费用报销', tag_weight: 0.82 },
+      { tag_name: '税务申报', tag_weight: 0.76 },
+      { tag_name: '往来账核对', tag_weight: 0.72 }
+    ],
+    pos_tags: [
+      { tag_name: '财务专员', tag_weight: 0.86 },
+      { tag_name: '会计助理', tag_weight: 0.7 }
+    ],
+    pos_types: [
+      { tag_name: '财务/审计/税务', tag_weight: 0.91 },
+      { tag_name: '会计', tag_weight: 0.68 }
+    ],
+    industries: [
+      { tag_name: '互联网-企业服务', tag_weight: 0.62 },
+      { tag_name: '批发零售-商贸', tag_weight: 0.48 }
+    ]
+  }
+})
+
+const loadDemoResume = async () => {
+  loading.value = true
+  loadingText.value = '正在生成测试简历...'
+  error.value = ''
+  showAIPanel.value = false
+  await nextTick()
+
+  try {
+    const demoParsedData = createDemoParsedData()
+    const candidateData = buildCandidateData(demoParsedData, '')
+    candidates.value.push(candidateData)
+    currentIndex.value = candidates.value.length - 1
+    applyCandidateData(candidateData)
+    parsedData.value = demoParsedData
+    mobileSection.value = 'summary'
+    activeTab.value = 'parser'
+    nextTick(() => initCharts())
+  } finally {
+    loading.value = false
+    loadingText.value = '正在解析简历...'
   }
 }
 
@@ -1991,12 +2176,16 @@ const reset = () => {
 
 <style lang="scss" scoped>
 .resume-analysis {
+  --desktop-ai-panel-width: min(420px, 36vw);
   min-height: 100vh;
   background: #f5f7fb;
   padding: 0;
+  transition: padding-right 0.3s ease;
 
   &.ai-panel-open {
-    // AI面板为fixed定位，不挤压主内容区域
+    &:not(.mobile-resume-page) {
+      padding-right: calc(var(--desktop-ai-panel-width) + 20px);
+    }
   }
 }
 
@@ -2024,7 +2213,7 @@ const reset = () => {
   transition: right 0.3s ease, box-shadow 0.3s ease;
 
   &.panel-open {
-    right: 560px;
+    right: calc(var(--desktop-ai-panel-width) + 20px);
   }
 
   &:hover {
@@ -3287,7 +3476,7 @@ const reset = () => {
   line-height: 1.6;
 }
 
-.mobile-upload-area button,
+.mobile-upload-actions button,
 .mobile-ai-btn,
 .mobile-add-btn,
 .mobile-icon-btn,
@@ -3297,7 +3486,14 @@ const reset = () => {
   font: inherit;
 }
 
-.mobile-upload-area button {
+.mobile-upload-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mobile-upload-actions button {
   width: 100%;
   min-height: 44px;
   border: none;
@@ -3305,6 +3501,12 @@ const reset = () => {
   background: #2563eb;
   color: #fff;
   font-weight: 700;
+}
+
+.mobile-upload-actions button.secondary {
+  background: #eef4ff;
+  color: #2563eb;
+  border: 1px solid #c7d7fe;
 }
 
 .mobile-format-row {
@@ -3827,6 +4029,7 @@ const reset = () => {
   .resume-analysis {
     width: 100%;
     max-width: 100vw;
+    padding-right: 0;
   }
 
   .main-container {

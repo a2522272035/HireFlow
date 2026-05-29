@@ -420,7 +420,7 @@ watch(
   position: fixed;
   top: 64px;
   right: 0;
-  width: 540px;
+  width: var(--desktop-ai-panel-width, 420px);
   height: calc(100vh - 64px);
   background: #ffffff;
   border-left: 1px solid #e5eaf3;
