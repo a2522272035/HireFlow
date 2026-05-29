@@ -789,13 +789,13 @@ import { ref, reactive, watch, nextTick, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
-import { RadarChart, PieChart } from 'echarts/charts'
-import { TooltipComponent, LegendComponent } from 'echarts/components'
+import { RadarChart, BarChart } from 'echarts/charts'
+import { TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import AIInterviewPanel from '@/components/common/AIInterviewPanel.vue'
 import TermTooltip from '@/components/common/TermTooltip.vue'
 
-use([RadarChart, PieChart, TooltipComponent, LegendComponent, CanvasRenderer])
+use([RadarChart, BarChart, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer])
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
 const route = useRoute()
@@ -2025,17 +2025,23 @@ const radarOption = (labels, values, name, color, valueLabel = '分值') => ({
   }]
 })
 
-const weightedTagData = (items = []) => {
-  const validItems = validTagItems(items).map(item => ({
-    name: item.tag_name,
-    rawValue: item.tag_weight
-  }))
-  const maxWeight = Math.max(...validItems.map(item => item.rawValue), 0)
+const formatChartWeight = (value, asPercent = true) => {
+  const num = toFiniteNumber(value)
+  if (!num) return '0'
+  return asPercent ? `${Math.round(num * 100)}%` : `${Math.round(num * 100) / 100}`
+}
 
-  return validItems.map(item => ({
-    name: item.name,
-    value: maxWeight ? clampScore((item.rawValue / maxWeight) * 100) : 0,
-    rawValue: Math.round(item.rawValue * 100) / 100
+const tagBarData = (items = [], limit = 6) => {
+  const sortedItems = validTagItems(items)
+    .sort((a, b) => b.tag_weight - a.tag_weight)
+    .slice(0, limit)
+  const asPercent = sortedItems.every(item => item.tag_weight <= 1)
+
+  return sortedItems.map(item => ({
+    name: item.tag_name,
+    value: asPercent ? Math.round(item.tag_weight * 100) : Math.round(item.tag_weight * 100) / 100,
+    rawWeight: item.tag_weight,
+    displayWeight: formatChartWeight(item.tag_weight, asPercent)
   }))
 }
 
@@ -2052,32 +2058,66 @@ const firstLevelIndustryData = (industryData = []) => {
     .slice(0, 6)
 }
 
-const pieOption = (seriesName, data, emptyText) => {
+const tagBarOption = (seriesName, data, emptyText, color = '#335EEA') => {
   if (!data.length) return noDataChartOption(emptyText)
 
   return {
     tooltip: {
-      trigger: 'item',
-      formatter: '{b}<br/>SDK权重：{c}<br/>占比：{d}%'
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      },
+      formatter: (params) => {
+        const item = params?.[0]?.data
+        if (!item) return ''
+        return `${item.name}<br/>SDK权重：${item.displayWeight}`
+      }
     },
-    legend: {
-      type: 'scroll',
-      top: '5%',
-      left: 'center'
+    grid: {
+      top: 12,
+      right: 48,
+      bottom: 16,
+      left: 96,
+      containLabel: true
+    },
+    xAxis: {
+      type: 'value',
+      min: 0,
+      axisLabel: {
+        color: '#7a8798'
+      },
+      splitLine: {
+        lineStyle: {
+          color: '#edf1f7'
+        }
+      }
+    },
+    yAxis: {
+      type: 'category',
+      inverse: true,
+      data: data.map(item => item.name),
+      axisLabel: {
+        color: '#344054',
+        width: 92,
+        overflow: 'truncate'
+      },
+      axisTick: { show: false },
+      axisLine: { show: false }
     },
     series: [{
       name: seriesName,
-      type: 'pie',
-      radius: '60%',
-      center: ['50%', '58%'],
+      type: 'bar',
+      barMaxWidth: 18,
       itemStyle: {
-        borderRadius: 0,
-        borderColor: '#fff',
-        borderWidth: 2
+        color,
+        borderRadius: [0, 6, 6, 0]
       },
       label: {
         show: true,
-        formatter: '{b}\n{d}%'
+        position: 'right',
+        color: '#344054',
+        fontWeight: 600,
+        formatter: ({ data }) => data.displayWeight
       },
       data
     }]
@@ -2089,32 +2129,26 @@ const updateChartOptions = (evalData, industryData = [], posTypeData = [], resul
   const capacityValues = buildCapacityValues(evalData, result, tagsData, certificates)
   capacityChartOption.value = radarOption(capacityLabels, capacityValues, '能力指数', '#335EEA', '综合分值')
 
-  const industryRadarData = weightedTagData(firstLevelIndustryData(industryData))
-  industryChartOption.value = industryRadarData.length
-    ? radarOption(
-        industryRadarData.map(item => item.name),
-        industryRadarData.map(item => item.value),
-        '行业匹配',
-        '#42BA96',
-        '归一化权重'
-      )
-    : noDataChartOption('SDK 未返回行业标签')
+  industryChartOption.value = tagBarOption(
+    '行业大类权重',
+    tagBarData(firstLevelIndustryData(industryData)),
+    'SDK 未返回行业标签',
+    '#42BA96'
+  )
 
-  const industryChart2Data = validTagItems(industryData)
-    .map(item => ({
-      name: item.tag_name,
-      value: Math.round(item.tag_weight * 100) / 100
-    }))
+  industryChart2Option.value = tagBarOption(
+    '行业标签明细',
+    tagBarData(industryData),
+    'SDK 未返回二级行业',
+    '#2f80ed'
+  )
 
-  industryChart2Option.value = pieOption('二级行业', industryChart2Data, 'SDK 未返回二级行业')
-
-  const posTypeChartData = validTagItems(posTypeData)
-    .map(item => ({
-      name: item.tag_name,
-      value: Math.round(item.tag_weight * 100) / 100
-    }))
-
-  positionTypeChartOption.value = pieOption('职位职能', posTypeChartData, 'SDK 未返回职位职能')
+  positionTypeChartOption.value = tagBarOption(
+    '职能标签权重',
+    tagBarData(posTypeData),
+    'SDK 未返回职位职能',
+    '#7C69EF'
+  )
 }
 
 const initCharts = () => {
@@ -3839,6 +3873,42 @@ const reset = () => {
 
 .mobile-rich-list.warning p {
   background: #fff8ed;
+}
+
+.mobile-rich-list,
+.mobile-rich-text {
+  :deep(.mytext-primary) {
+    color: #335EEA !important;
+    font-weight: 700;
+  }
+
+  :deep(.mytext-warning) {
+    color: #f59e0b !important;
+    font-weight: 700;
+  }
+
+  :deep(.mytext-info) {
+    color: #7C69EF !important;
+    font-weight: 700;
+  }
+
+  :deep(.mytext-danger) {
+    color: #c0392b !important;
+    font-weight: 700;
+  }
+
+  :deep(.mytext-success) {
+    color: #42BA96 !important;
+    font-weight: 700;
+  }
+
+  :deep(.underline) {
+    text-decoration: underline;
+  }
+
+  :deep(.font-weight-bold) {
+    font-weight: 700;
+  }
 }
 
 .mobile-empty {
