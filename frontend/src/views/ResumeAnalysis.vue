@@ -3523,8 +3523,9 @@ const reset = () => {
 .mobile-upload-actions {
   width: 100%;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
 }
 
 .mobile-upload-actions button {
@@ -3538,9 +3539,14 @@ const reset = () => {
 }
 
 .mobile-upload-actions button.secondary {
+  width: auto;
+  min-width: 84px;
+  min-height: 36px;
+  padding: 0 12px;
   background: #eef4ff;
   color: #2563eb;
   border: 1px solid #c7d7fe;
+  font-size: 13px;
 }
 
 .mobile-format-row {
